@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<meta charset="UTF-8"/>
+	<title>QRCode web editor</title>
+	<meta http-equiv="Content-Script-Type" content="application/javascript"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1"/>
+	<script type="text/javascript" src="../core/ECCGen.js"></script>
+	<script type="text/javascript" src="../core/qrGen.js"></script>
+	<script type="text/javascript" src="js/freePage.js"></script>
+	<link href="css/freepage.css" rel="stylesheet" type="text/css"/>
+</head>
+<body>
+	<div id="outputs">
+		<div id="svgContainer" >
+			<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 0 0" stroke="none" preserveAspectRatio="xMidYMid meet">
+				<rect width="100%" height="100%" fill="#ffffff"></rect>
+				<path id="svgPath" d="" fill="#000000"></path>
+			</svg>
+		</div>
+	</div>
+	<div id="inputs">
+		<div id="feedbackContainer">
+			<div class="feedback">
+				<span id="feedbackTitle"></span>
+				<span id="feedbackFormat"></span>
+			</div>
+			<a href="#" download="symbol.svg" class="button" id="saveButton" disabled>
+				<img src="css/download.svg">
+			</a>
+		</div>
+		<div id="settings">
+			<div class="setting">
+				<form>
+					<label>Select mask:</label>
+					<select id="maskBox">
+						<option value="1">Mask 1</option>
+						<option value="2">Mask 2</option>
+						<option value="3">Mask 3</option>
+						<option value="4">Mask 4</option>
+						<option value="5">Mask 5</option>
+						<option value="6">Mask 6</option>
+						<option value="7">Mask 7</option>
+						<option value="8">Mask 8</option>
+						<option value="9" selected>auto</option>
+					</select>
+				</form>
+			</div>
+			<div class="setting">
+				<form>
+					<label>Select error correction:</label>
+					<select id="eccBox">
+						<option value="1">L - 7%</option>
+						<option value="2">M - 15%</option>
+						<option value="3" selected>Q - 25%</option>
+						<option value="4">H - 30%</option>
+					</select>
+				</form>
+			</div>
+		</div>
+		<div id="textField">
+			<div id="textDiv">
+				<textarea name="inputbox" id="input_text" maxlength="3000" rows="4" placeholder="Your text here - 3000 characters max" autofocus></textarea>
+			</div>
+			<div class="button" id="genButton">
+				<img src="css/button-icon.svg">
+			</div>
+		</div>
+	</div>
+</body></html>

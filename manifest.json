@@ -1,0 +1,37 @@
+{
+  "browser_action": {
+			"default_icon": "icons/logo.svg",
+      "default_title": "QRier",
+			"browser_style": true,
+			"default_popup": "popup/QRier.html",
+			"theme_icons": [{
+				"light": "icons/logo-light.svg",
+				"dark": "icons/logo.svg",
+				"size":32
+				}]
+  },
+	"icons":{
+		"48": "icons/logo.svg"
+	},
+  "description": "Adds a button and context menus to generate QR codes",
+	"author": "MrOtherGuy",
+  "manifest_version": 2,
+  "name": "QRier",
+  "options_ui": {
+      "page": "options/options.html",
+      "browser_style": true
+  },
+  "permissions": ["activeTab","menus","storage"],
+	"omnibox":{
+		"keyword": "qrier"
+	},
+  "version": "1.4.0",
+	"background": {
+		"scripts": ["core/ECCGen.js","core/qrGen.js","background-script.js","inContentHandler.js"]
+	},
+	"applications": {
+  "gecko": {
+    "id": "QRier@example.com"
+  }
+}
+}

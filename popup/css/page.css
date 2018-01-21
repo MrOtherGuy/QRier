@@ -1,0 +1,31 @@
+body{
+	background-color: rgb(10,20,30);
+  padding: 0 4px;
+	overflow: hidden;
+}
+p,
+#freePageLink{
+	color: #EEEEEE;
+	width: 100%;
+	line-height: 1;
+	}
+#freePageLink{ 
+	position: relative;
+	bottom: 0px;
+	left: 0px;
+	background: rgb(46,54,69);
+	height: 3em;
+	padding: 1em;
+	text-align: center;
+}
+#freePageLink img{
+	position: absolute;
+	height: 1.4em;
+	width: 1.4em;
+	margin-left: -2em;
+}
+#freePageLink:hover,
+#freePageLink:active{
+	opacity: 0.8;
+}
+#feedbackFormat{ display:none; }
