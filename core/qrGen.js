@@ -1,7 +1,7 @@
 /*
     QRier QR-code generator library
 		
-    Copyright (C) 2017  MrOtherGuy
+    Copyright (C) 2017 - 2018  MrOtherGuy
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,8 +23,12 @@
 'use strict'
 
 function QRcode (){
-	
-	var rs = new RSECC(0x11d,256,0);
+	try{
+		var rs = new RSECC(0x11d,256,0);
+	}catch(e){
+		console.log(e);
+		return null;
+	}
 	var currentSymbol = null;
 	var blockFormats = new Uint8Array([
     1, 0, 19, 7, 1, 0, 16, 10, 1, 0, 13, 13, 1, 0, 9, 17,

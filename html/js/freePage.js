@@ -70,12 +70,6 @@ function makeSymbol(query){
 	}
 }
 
-
-function selectOutput(box){
-	// canvas or svg
-}
-
-
 function selectOption(box){
 	return parseInt(box.value);
 }
