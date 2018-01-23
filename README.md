@@ -1,4 +1,4 @@
-#QRier
+# QRier
 
 Javascript based QR-code generator. Supports QR versions (size) up to 40, byte mode only. Mask type and error correction level are configurable. Automatic mask selection is an option. Supports output to SVG and HTML Canvas
 
