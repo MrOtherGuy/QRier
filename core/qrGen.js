@@ -24,7 +24,7 @@
 
 function QRcode (){
 	try{
-		var rs = new RSECC(0x11d,256,0);
+		var rs = new RSECC({polynomial:0x11d,fieldSize:256,fcr:0});
 	}catch(e){
 		console.log(e);
 		return null;
@@ -200,11 +200,11 @@ function QRcode (){
 		//var a_ecc_blocks2 = new Array(format.neccblk2);
 		var dataOffset = 0;
 		for (var i = 0;i < format.neccblk1;i++){
-			a_ecc_blocks[i] = rs.makeECC(format.eccblkwid,format.datablkw,datacodes.slice(dataOffset,dataOffset + format.datablkw));
+			a_ecc_blocks[i] = rs.makeECC({"ecWidth":format.eccblkwid,"dataWidth":format.datablkw,"data":datacodes.slice(dataOffset,dataOffset + format.datablkw)});
 			dataOffset += format.datablkw;
 		}
 		for (i;i < a_ecc_blocks.length;i++){
-			a_ecc_blocks[i] = rs.makeECC(format.eccblkwid,format.datablkw + 1,datacodes.slice(dataOffset,dataOffset + format.datablkw + 1));
+			a_ecc_blocks[i] = rs.makeECC({"ecWidth":format.eccblkwid,"dataWidth":format.datablkw + 1,"data":datacodes.slice(dataOffset,dataOffset + format.datablkw + 1)});
 			dataOffset += (format.datablkw + 1);
 		}
 		dataOffset = 0;

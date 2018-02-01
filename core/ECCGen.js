@@ -22,42 +22,46 @@
 
 "use strict";
 
-function RSECC(polynomial,fieldSize,first_consecutive_root){	
-	var poly = polynomial || null;
-	var logSize = fieldSize || null;
+function RSECC(options){
+
+	if (!("Uint8Array" in window)){
+		throw "Browser doesn't support typed arrays";
+	}
+	var polynomial = options.polynomial || null;
+	var fieldSize = options.fieldSize || null;
+	// This conveniently converts non-number types and rounds down to integers
+	var fcr = options.fcr | 0;
 	// There is no support for field size other than 2^8
-	logSize = 256;
-	var fcr = (typeof(first_consecutive_root) == "number")?first_consecutive_root:null;
+	fieldSize = 256;
 	var logs = null;
 	var aLogs = null;
 	var factors = null;
 	var prevFactorCount = null;
+
 	// Private methods
-	
-	// The object stores log tables for future use
 	var createGaloisLogTables = function(){
 		
-		if(logSize === null){
-			throw "logSize is not defined";
+		if(fieldSize === null){
+			throw "field size is not defined";
 		}
-		if(poly === null){
+		if(polynomial === null){
 			throw "generator polynomial is not defined";
 		}
 		// logs[0] is invalid and should never be accessed
 		logs[0] = 255;
 		aLogs[0] = 1;
 		var tmp;
-		for(var i = 1; i < logSize; i++){
+		for(var i = 1; i < fieldSize; i++){
 			tmp = aLogs[i - 1] << 1;
 			if (tmp & 0x100){
-				tmp = tmp ^ poly;
+				tmp = tmp ^ polynomial;
 			}
 			aLogs[i] = tmp;
 			logs[tmp] = i;
 		}
 		return
 	}
-	
+	// Computes factors for n error code words
 	var computeFactors = function(n){
 		if (!aLogs || !logs){
 			throw "Logtables are not initilized";
@@ -83,7 +87,7 @@ function RSECC(polynomial,fieldSize,first_consecutive_root){
 	
 	var galoisMulti = function(c,d){
 	// multiplication by zero results in...
-	// Also, this handles the case where we might access logs[0] which shouldn't happen
+	// This also handles the case where we might access logs[0] which shouldn't happen
     if (!d || !c) {
         return 0;
     }
@@ -95,24 +99,24 @@ function RSECC(polynomial,fieldSize,first_consecutive_root){
 	// Only 256 is supported so this isn't useful
 	/*
 	this.setLogSize = function(n){
-		logSize = 256;
-		console.log("logSize set to: "+logSize);
-		if (poly){
-			this.setPolynomial(poly);
+		fieldSize = 256;
+		console.log("field size set to: " + fieldSize);
+		if (polynomial){
+			this.setPolynomial(polynomial);
 		}
 	}
 	*/
 	
-	this.setPolynomial = function(polynomial){
-		poly = polynomial;
-		console.log("Polynomial set to: " + poly);
+	this.setPolynomial = function(poly){
+		polynomial = poly;
+		console.log("Polynomial set to: " + polynomial);
 		// Clear current logTables
 		if (!logs){
-			logs = new Uint8Array(logSize);
-			aLogs = new Uint8Array(logSize);
+			logs = new Uint8Array(fieldSize);
+			aLogs = new Uint8Array(fieldSize);
 			console.log("logTables initialized");
 		}else{
-			for( var i = 0; i < logSize; i++){
+			for( var i = 0; i < fieldSize; i++){
 				logs[i] = 0;
 				aLogs[i] = 0;
 				
@@ -142,7 +146,7 @@ function RSECC(polynomial,fieldSize,first_consecutive_root){
 	}
 	
 	this.getFactors = function(){
-		console.log("Returning factors for " + prevFactorCount + " ECCs with polynomial 0x" + poly.toString(16))
+		console.log("Returning factors for " + prevFactorCount + " ECCs with polynomial 0x" + polynomial.toString(16))
 		return factors
 	}
 	
@@ -176,20 +180,25 @@ function RSECC(polynomial,fieldSize,first_consecutive_root){
 		}		
 	}
 	
-	if (poly && logSize){
-		logs = new Uint8Array(logSize);
-		aLogs = new Uint8Array(logSize);
+	if (polynomial && fieldSize){
+		logs = new Uint8Array(fieldSize);
+		aLogs = new Uint8Array(fieldSize);
 		//console.log("logTables created");
 		createGaloisLogTables();
 	}
 	
-	// main method
+	// returns an array of error correction codes using initialized values
 	
-	this.makeECC = function(n_ecw, n_dcw, dcw){
+	this.makeECC = function(options){
 		
-		if(arguments.length != 3){
-			console.log("Call with: makeECC(ecc width, data width, data array)");
-			throw "makeECC was called with " + Function.length + " parameters where 3 was expected";
+		var n_ecw = options.ecWidth;
+		var dcw = options.data;
+		var n_dcw = options.dataWidth || dcw.length;
+
+		
+		if(!(dcw.length && typeof(dcw) != "string") || typeof(n_dcw) != "number"){
+			console.log("Call with: makeECC({ecWidth:<Integer>,data:<Array>,[Optional dataWidth:<Integer>]})");
+			throw "makeECC was called with invalid arguments - ecWidth: " + options.ecWidth + ", data: " + typeof(dcw) + "[" + dcw.length + "], dataWidth: " + n_dcw;
 		}
 		
 		if(!n_ecw){
