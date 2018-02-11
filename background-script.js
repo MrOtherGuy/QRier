@@ -144,6 +144,12 @@ function setOutput(output){
 function setOS(os){
 	info.os = os.os;
 }
+// Extends encodeURIComponent() to include !'()*
+function fixedEncodeURIComponent(str) {
+  return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
+    return '%' + c.charCodeAt(0).toString(16);
+  });
+}
 	
 	function setup(){
 		var gettingOutput = browser.storage.local.get(['inContent']);
@@ -176,7 +182,11 @@ function setOS(os){
 				browser.tabs.update({url:freePageURI + "?" + tabs[0].url});
 			});
 		}else{
-			browser.tabs.update({url:freePageURI + "?" + input});
+			browser.storage.local.get(['mask','ecc']).then((options) => {
+				var mask = options.mask;
+				var ecc = [null,"L","M","Q","H"][options.ecc];
+				browser.tabs.update({url:freePageURI + "?data=" + fixedEncodeURIComponent(input) + "&mask=" + mask + "&ecc=" + ecc});
+			});
 		}
 	});
 	}else{

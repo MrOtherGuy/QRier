@@ -2,9 +2,9 @@ function saveOptions(e) {
 	var newMenus = {"onLink":document.querySelector("#onLink").checked,"onUrl":document.querySelector("#onUrl").checked,"onSelection":document.querySelector("#onSelect").checked};
 	var newOutput = document.getElementById("outputType").elements["output"].value;
   browser.storage.local.set({
-    mask: document.querySelector("#maskSelect").value,
-		ecc: document.querySelector("#eccSelect").value,
-		scale: document.querySelector("#scaleSelect").value,
+    mask: parseInt(document.querySelector("#maskSelect").value),
+		ecc: parseInt(document.querySelector("#eccSelect").value),
+		scale: parseInt(document.querySelector("#scaleSelect").value),
 		showLink: newMenus.onLink,
 		showUrl: newMenus.onUrl,
 		showSelection: newMenus.onSelection,
@@ -48,7 +48,6 @@ function onError() {
 
 function updateMenus(newMenus){
 	if (menuStates.onLink != newMenus.onLink){
-		//console.log("onLink changed from: "+ menuStates.onLink +" to: "+newMenus.onLink);
 		if(menuStates.onLink){
 			browser.menus.remove("openMenuLink").then(onRemoved,onError);
 		}else{
@@ -93,12 +92,13 @@ function restoreOptions() {
 
   var gettingItem = browser.storage.local.get(['mask','ecc','scale','showLink','showUrl','showSelection','inContent']);
   gettingItem.then((res) => {
-    document.querySelector("#maskSelect").options[parseInt(res.mask) - 1].selected = true;
-		//document.querySelector("#selectMask").innerText = masks[res.mask];
-		document.querySelector("#eccSelect").options[parseInt(res.ecc) - 1].selected = true;
-		//document.querySelector("#selectECC").innerText = eccs[res.ecc];
-		document.querySelector("#scaleSelect").options[(parseInt(res.scale)>>1) - 2].selected = true;
-		//document.querySelector("#selectScale").innerText = scales[res.scale>>1];
+
+		document.querySelector("#maskSelect").value = res.mask.toString();
+
+		document.querySelector("#eccSelect").value = res.ecc.toString();
+
+		document.querySelector("#scaleSelect").value = res.scale.toString();
+
 		document.querySelector("#onLink").checked = res.showLink;
 		menuStates.onLink = res.showLink;
 		document.querySelector("#onUrl").checked = res.showUrl;
@@ -109,8 +109,6 @@ function restoreOptions() {
   });
 }
 var menuStates = {"onLink":false,"onUrl":false,"onSelection":false};
-const masks = [null,1,2,3,4,5,6,7,8,"Auto"];
-const eccs = [null,"L - 7%","M - 15%","Q - 25%","H - 30%"];
-const scales = [null,"2x2","4x4","6x6","8x8","10x10","12x12"];
+
 document.addEventListener('DOMContentLoaded', restoreOptions);
 document.getElementById("saveButton").addEventListener("click", saveOptions,false);

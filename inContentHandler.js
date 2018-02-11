@@ -10,13 +10,13 @@ function handleInContent(str){
 	
 	function setOptions(opt){
 		if(opt.mask != undefined){
-			options.mask = parseInt(opt.mask);
+			options.mask = opt.mask;
 		}
 		if(opt.ecc != undefined){
-			options.ECC = parseInt(opt.ecc);
+			options.ECC = opt.ecc;
 		}
 		if(opt.scale != undefined){
-			options.scale = parseInt(opt.scale);
+			options.scale = opt.scale;
 		}
 	}
 	
@@ -42,11 +42,10 @@ function handleInContent(str){
 		var scale = options.scale;
 		var inputText = query;
 	
-	//var canvas = document.createElement("canvas");
 	// Page scales to screen width on Android so let's scale the image to that
 	var containerWidth = null;
 	var requestInfo = {	"maskNumber":mask,
-											"ecc_level":eccLevel,
+											"eccLevel":eccLevel,
 											"imagePadding":3,
 											"outputType":"svgFull"
 											/*"outputElement":canvas,

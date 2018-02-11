@@ -21,7 +21,7 @@ function makeSymbol(query){
 	// Page scales to screen width on Android so let's scale the image to that
 	var containerWidth = os === "android" ? Math.min(window.innerHeight, window.innerWidth):null;
 	var requestInfo = {	"maskNumber":mask,
-											"ecc_level":eccLevel,
+											"eccLevel":eccLevel,
 											"imagePadding":3,
 											"outputType":"canvas",
 											"outputElement":canvas,
@@ -52,13 +52,13 @@ function setCurrent(tabs){
 	
 	function setOptions(opt){
 		if(opt.mask != undefined){
-			options.mask = parseInt(opt.mask);
+			options.mask = opt.mask;
 		}
 		if(opt.ecc != undefined){
-			options.ECC = parseInt(opt.ecc);
+			options.ECC = opt.ecc;
 		}
 		if(opt.scale != undefined){
-			options.scale = parseInt(opt.scale);
+			options.scale = opt.scale;
 		}
 	}
 	
@@ -67,9 +67,15 @@ function parseLocation(src){
 	var res = (start > 0 && start < src.length - 1) ? src.substring(start + 1):"";
 	return res.substr(0,3000);
 }
+// Extends encodeURIComponent() to include !'()*
+function fixedEncodeURIComponent(str) {
+  return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
+    return '%' + c.charCodeAt(0).toString(16);
+  });
+}
 	
 function openFreePage() {
-	browser.tabs.create({url:"../pages/QRierFreepage.html"+"?"+currentText});
+	browser.tabs.create({url:"../pages/QRierFreepage.html"+"?data="+fixedEncodeURIComponent(currentText) + "&ecc=" + [null,"L","M","Q","H"][options.ECC] + "&mask=" + options.mask});
 	window.close();
 }
 var currentTab,os,currentText;

@@ -1,5 +1,5 @@
 'use strict'
-	var qrCode,orgX,curVal,svgC,outC,userNeedsaBetterBrowser,textField;
+	var qrCode,orgX,curVal,svgC,outC,userNeedsaBetterBrowser,textField,lazyTimeout;
 	var isTouchDevice = hasTouch();
 	var codeIsEmpty = true;
 	var lastObjectUrl = null;
@@ -31,29 +31,28 @@ function feedback(input,result,state,elem){
 	if(!state){
 		document.getElementById("feedbackFormat").textContent = "QR-version: "+result.version+" with mask: "+result.mask;
 		saveButton.removeAttribute("disabled");
-		//saveButton.setAttribute("href",lastObjectUrl);
 	}else{
 		document.getElementById("feedbackFormat").textContent = "";
 		saveButton.setAttribute("disabled",true);
-		//saveButton.setAttribute("href","#");
 	}
 }
 
 function makeSymbol(query){
 	var str_input;
 	var padding = 3; // 3 svg units
-	if (typeof query == "string"){
-		str_input = query;
+	if (query){
+		str_input = query.data;
 	}else{
+		query = {ecc:null,mask:null};
 		str_input = textField.value;
 	}
-	var ecc_level = selectOption(document.getElementById("eccBox"));
-	var maskNumber = selectOption(document.getElementById("maskBox"));
+	var eccLevel = parseInt(query.ecc) || parseInt(document.getElementById("eccBox").value);
+	var maskNumber = parseInt(query.mask) || parseInt(document.getElementById("maskBox"));
 	var svg = document.getElementById("svgContainer");
 	var svgPath = document.getElementById("svgPath");
 	try{
 		var requestInfo = {	"maskNumber":maskNumber,
-												"ecc_level":ecc_level,
+												"eccLevel":eccLevel,
 												"imagePadding":padding,
 												"outputType":"svgPath",
 											};
@@ -61,7 +60,14 @@ function makeSymbol(query){
 		svgPath.setAttribute("d",result.result);
 		svgPath.parentNode.setAttribute("viewBox","0 0 "+result.width+" "+result.width);
 		codeIsEmpty = false;
-		feedback(str_input.substr(0,20),result,0,svg);
+		var feedbackText = str_input.substr(0,47);
+		if (str_input.length > 50){
+			feedbackText += "...";
+		}else{
+			feedbackText += str_input.substr(48,3);
+		}
+		
+		feedback(feedbackText,result,0,svg);
 	}catch(e){
 		svgPath.setAttribute("d","");
 		svgPath.parentNode.setAttribute("viewBox","0 0 0 0");
@@ -70,11 +76,16 @@ function makeSymbol(query){
 	}
 }
 
-function selectOption(box){
-	return parseInt(box.value);
+function lazyMakeSymbol(){
+	if(lazyTimeout){
+		window.clearTimeout(lazyTimeout);
+	}
+	lazyTimeout = window.setTimeout(makeSymbol,80);
 }
-/* Input handlers */
 
+/* Input handlers
+*  Touch action are mapped to mouse actions
+*/
 function onPointerDown(e){
 	e.preventDefault();
 	if (e.type == "touchstart"){
@@ -90,7 +101,6 @@ function onPointerDown(e){
 			return false
 		}
 	}
-	//curVal = parseInt(svgC.style.getPropertyValue("--svg-width"));
 	curVal = getContainerWidth(svgC);
 	outC[selectPointer("up")] = onPointerUp;
 	outC[selectPointer("leave")] = onPointerUp;
@@ -113,7 +123,6 @@ function onPointerMove(e){
 		x = e.clientX;
 	}
 	setContainerWidth(Math.min(Math.max(curVal+(x - orgX)/2,0),100),svgC);
-	//svgC.style.setProperty("--svg-width",Math.min(Math.max(curVal+(x - orgX)/2,0),100) + "%");
 }
 
 function hasTouch(){
@@ -163,21 +172,27 @@ function selectPointer(action){
 	return str
 }
 
-function parseLocation(src){
-	var start = src.indexOf("?");
-	var res = (start > 0 && start < src.length - 1) ? src.substring(start + 1):"";
-	return res.substr(0,3000);
+function queryParams(query){
+  var str = query.substring(1);
+  var tokens = str.split("&");
+  var entries = {};
+  for(var i = 0;i < tokens.length;i++){
+    var pair = tokens[i].split("=");
+    entries[pair[0]] = decodeURIComponent(pair[1]);
+  }
+  this.get = function(name){
+      return entries[name];
+    }
 }
 
 function init(){
 	textField = document.getElementById("input_text");
-	textField.addEventListener("input",makeSymbol,false);
+	textField.addEventListener("input",lazyMakeSymbol,false);
 	userNeedsaBetterBrowser = !!navigator.msSaveBlob;
 	qrCode = new QRcode();
 	// Style canvases
 	svgC = document.getElementById("svgContainer");
 	setContainerWidth(100,svgC);
-	//svgC.style.setProperty("--svg-width","100%");
 	outC = document.getElementById("outputs");
 	//IE hacks woo
 	if(userNeedsaBetterBrowser){
@@ -189,11 +204,26 @@ function init(){
 	
 	
 	// Autorun generator If the user made a request containing query parameters
-	// Also limit to the first 36 characters to be inline with the inputbox
-	var query = decodeURIComponent(parseLocation(location.href));
-	if (query) {
-		makeSymbol(query);
-		textField.value = query;
+	var query = new queryParams(location.search);
+	var queryData = query.get("data");
+	
+	if (queryData) {
+		var parameters = {
+			"data": queryData,
+			"ecc": {L:"1",M:"2",Q:"3",H:"4"}[query.get("ecc")],
+			"mask": query.get("mask"),
+			"scale": query.get("scale"),
+			"output": query.get("output")
+		};
+		
+		makeSymbol(parameters);
+		textField.value = queryData;
+		if((/^[1-4]$/).test(parameters.ecc)){
+			document.getElementById("eccBox").value = parameters.ecc;
+		}
+		if((/^[1-9]$/).test(parameters.mask)){
+			document.getElementById("maskBox").value = parameters.mask;
+		}
 	}
 	// feedback the user init ran well and add listeners to generate and copy buttons
 	console.log("generator initialized");

@@ -197,7 +197,6 @@ function QRcode (){
 		var a_final = new Uint8Array(format.datalength + (format.neccblk1 + format.neccblk2) * format.eccblkwid);
 		// Create ecc blocks and store them to array
 		var a_ecc_blocks = new Array(format.neccblk1 + format.neccblk2);
-		//var a_ecc_blocks2 = new Array(format.neccblk2);
 		var dataOffset = 0;
 		for (var i = 0;i < format.neccblk1;i++){
 			a_ecc_blocks[i] = rs.makeECC({"ecWidth":format.eccblkwid,"dataWidth":format.datablkw,"data":datacodes.slice(dataOffset,dataOffset + format.datablkw)});
@@ -727,7 +726,7 @@ function QRcode (){
 	this.make = function(str_input,info){
 	//	str_input - input string
 	//	info.maskNumber - mask number 1-9, 9 means automatic
-	//	info.ecc_level - error correction level 1-4
+	//	info.eccLevel - error correction level 1-4
 	//	info.imagePadding - empty space around symbol in module units
 	//	info.outputType; -	svgPath		- return a string describing svg path
 	//											svgFull		- return a full svg file as string
@@ -739,7 +738,7 @@ function QRcode (){
 	//	info.containerSize - Width of the containing element. Canvas only
 
 		var selectedMask = Math.min(Math.max(0,info.maskNumber),9) || 9;
-		var ecc_level = Math.min(Math.max(0,info.ecc_level),4) || 3;
+		var eccLevel = Math.min(Math.max(0,info.eccLevel),4) || 3;
 		var padding = info.imagePadding || 3;
 		if (!(typeof(info.outputType) === "string")){
 			throw "outputType: "+info.outputType+" is not valid";  
@@ -759,7 +758,7 @@ function QRcode (){
 		if(!a_input || a_input.length == 0){
 			throw "No data"
 		}
-		var format = findVersion(a_input.length,ecc_level);
+		var format = findVersion(a_input.length,eccLevel);
 		resultInfo.version = format.version;
 		var width = 17 + 4 * format.version;
 		
@@ -796,7 +795,7 @@ function QRcode (){
 		}
 		resultInfo.mask = selectedMask;
 		Object.defineProperty(bestFrame,"setBlack",{value:setBlack});
-		addFormatInfo(bestFrame,selectedMask,width,ecc_level);
+		addFormatInfo(bestFrame,selectedMask,width,eccLevel);
 		var result;
 		switch (info.outputType){
 			case "canvas":
