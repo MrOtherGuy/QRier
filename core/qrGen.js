@@ -93,7 +93,7 @@ function QRcode (){
 	};
 	
 	var getPixel = function(x,y){
-		return this[x + this.width * y]
+		return this[x + this.width * y] & 1
 	};
 	
 	var isMasked = function(x,y){
@@ -240,7 +240,7 @@ function QRcode (){
 		Object.defineProperty(qrFrame,"isMasked",{value:isMasked});
 		Object.defineProperty(qrFrame,"setBlack",{value:setBlack});
 		Object.defineProperty(qrFrame,"setMask",{value:setMask});
-	
+			Object.defineProperty(qrFrame,"getPixel",{value:getPixel});
 		var createAlignmentPattern = function(x,y,frameWidth){
 			var i;
 			qrFrame.setBlack(x , y);
@@ -518,133 +518,59 @@ function QRcode (){
 		}
 		return score;
 	}
+	
+	function applyMask(qrFrame,mask,maskNum,width,newMask){
+		// Don't generate new mask array when reversing
+		if(newMask){
+			//Make new mask
+			var offset = 0;
+			var r3x = 0;
+			var r3y = 0;
+			for (var y = 0; y < width; y++, r3y++){
+				offset = y * width;
+				r3y = r3y % 3;
+				for (var x = 0, r3x = 0; x < width; x++){
+					switch (maskNum) {
+						case 1:
+							mask[offset + x] = !((x + y) & 1) & !qrFrame.isMasked(x,y);
+							break;
+						case 2:
+							mask[offset + x] = !(y & 1) & !qrFrame.isMasked(x,y);
+							break;
+						case 3:
+							mask[offset + x] = !(x % 3) & !qrFrame.isMasked(x,y);
+							break;
+						case 4: 
+							mask[offset + x] = !((x + y) % 3) & !qrFrame.isMasked(x,y);
+							break;
+						case 5:
+							mask[offset + x] = !((((x / 3) | 0) + (y >> 1)) & 1) & !qrFrame.isMasked(x,y);
+							break;
+						case 6:
+							mask[offset + x] = !((x & y & 1) + (r3x && r3y)) & !qrFrame.isMasked(x,y);
+							r3x = (r3x + 1) % 3;
+							break;
+						case 7:
+							mask[offset + x] = !(((x & y & 1) + (r3x && (r3x === r3y))) & 1) & !qrFrame.isMasked(x,y);
+							r3x = (r3x + 1) % 3;
+							break;
+						case 8:
+							mask[offset + x] = !(((r3x && (r3x === r3y)) + ((x + y) & 1)) & 1) & !qrFrame.isMasked(x,y);
+							r3x = (r3x + 1) % 3;
+							break;
+						default:
+							throw "mask number out of range"
+							break;
 
-	function applyMask(qrFrame,maskNum,width){
-		var masked = new Uint8Array(qrFrame.length);
-		for (var i = 0; i < masked.length;i++){
-			masked[i] = qrFrame[i] & 1;
+					}
+				}
+			}
 		}
-		Object.defineProperty(masked,"width",{value:width});
-		Object.defineProperty(masked,"getPixel",{value:getPixel});
-
-		var x, y, r3x, r3y, offset;
-		switch (maskNum) {
-			case 1:
-				for (y = 0; y < width; y++){
-					offset = y * width;
-					for (x = 0; x < width; x++){
-						if (!((x + y) & 1) && !qrFrame.isMasked(x,y)){
-							masked[x + offset] ^= 1;
-						}
-					}
-				}
-				break;
-			case 2:
-				for (y = 0; y < width; y++){
-					offset = y * width;
-					for (x = 0; x < width; x++){
-						if (!(y & 1) && !qrFrame.isMasked(x,y)){
-							masked[x + offset] ^= 1;
-						}
-					}
-				}
-				break;
-			case 3:
-				for (y = 0; y < width; y++){
-					offset = y * width;
-					for (r3x = 0, x = 0; x < width; x++, r3x++){
-						if (r3x == 3){
-							r3x = 0;
-						}
-						if (!r3x && !qrFrame.isMasked(x,y)){
-							masked[x + offset] ^= 1;
-						}
-					}
-				}
-				break;
-			case 4:
-				for (r3y = 0, y = 0; y < width; y++, r3y++) {
-					if (r3y == 3){
-						r3y = 0;
-					}
-					offset = y * width;
-					for (r3x = r3y, x = 0; x < width; x++, r3x++) {
-						if (r3x == 3){
-							r3x = 0;
-						}
-						if (!r3x && !qrFrame.isMasked(x,y)){
-							masked[x + offset] ^= 1;
-						}
-					}
-				}
-				break;
-			case 5:
-				for (y = 0; y < width; y++){
-					offset = y * width;
-					for (r3x = 0, r3y = ((y >> 1) & 1), x = 0; x < width; x++, r3x++) {
-						if (r3x == 3) {
-							r3x = 0;
-							r3y = !r3y;
-						}
-						if (!r3y && !qrFrame.isMasked(x,y)){
-							masked[x + offset] ^= 1;
-						}
-					}
-				}
-				break;
-			case 6:
-				for (r3y = 0, y = 0; y < width; y++, r3y++) {
-					offset = y * width;
-					if (r3y == 3){
-						r3y = 0;
-					}
-					for (r3x = 0, x = 0; x < width; x++, r3x++) {
-						if (r3x == 3){
-							r3x = 0;
-						}
-						if (!((x & y & 1) + !(!r3x | !r3y)) && !qrFrame.isMasked(x,y)){
-							masked[x + offset] ^= 1;
-						}
-					}
-				}
-				break;
-			case 7:
-				for (r3y = 0, y = 0; y < width; y++, r3y++) {
-					offset = y * width;
-					if (r3y == 3){
-						r3y = 0;
-					}
-					for (r3x = 0, x = 0; x < width; x++, r3x++) {
-						if (r3x == 3){
-							r3x = 0;
-						}
-						if (!(((x & y & 1) + (r3x && (r3x == r3y))) & 1) && !qrFrame.isMasked(x,y)){
-							masked[x + y * width] ^= 1;
-						}
-					}
-				}
-				break;
-			case 8:
-				for (r3y = 0, y = 0; y < width; y++, r3y++) {
-					offset = y * width;
-					if (r3y == 3){
-						r3y = 0;
-					}
-					for (r3x = 0, x = 0; x < width; x++, r3x++) {
-						if (r3x == 3){
-							r3x = 0;
-						}
-						if (!(((r3x && (r3x == r3y)) + ((x + y) & 1)) & 1) && !qrFrame.isMasked(x,y)){
-							masked[x + offset] ^= 1;
-						}
-					}
-				}
-				break;
-			default:
-				throw "mask number out of range"
-				break;
+		// XOR against mask
+		for(var i = 0; i < qrFrame.length; i++){
+			qrFrame[i] ^= mask[i];
 		}
-		return masked;
+		return 0
 	}
 	
 	function addFormatInfo(qrFrame,maskNumber,width,ecc_level){
@@ -679,7 +605,6 @@ function QRcode (){
 		}
 		return result
 	}
-	
 	
 	
 	function drawCanvas(canvasElem,qrImage,width,scale,padding){
@@ -774,41 +699,40 @@ function QRcode (){
 		
 		var message = encodeData(a_input,format);
 		var rawFrame = makeFrame(message,width,format.version);
-		var bestFrame;
+		// Allocate equal size array for mask
+		var maskFrame = new Uint8Array(rawFrame.length);
 		if (selectedMask == 9 ){ // auto select mask
-			var bestMask = 0; // mask number
-			var goal = 30000;
+			var goal = Infinity; // Any score is better than none
 			var score;
 			for (var i = 1; i < 9; i++){
-				var tempFrame = applyMask(rawFrame,i,width);
-				score = testFrame(tempFrame,width);
+				// XOR raw frame against mask, can be reversed
+				applyMask(rawFrame,maskFrame,i,width,true);
+				score = testFrame(rawFrame,width);
 				if (score < goal){
 					goal = score;
-					bestMask = i;
 					selectedMask = i;
-					// this copying is fine, applymask assigns a new array
-					bestFrame = tempFrame;
 				}
+				// Reverse the masking
+				applyMask(rawFrame,maskFrame,i,width,false);
 			}
-		}else {
-			bestFrame = applyMask(rawFrame, selectedMask,width);
 		}
+		// Apply the explicitly selected or best mask
+		applyMask(rawFrame,maskFrame,selectedMask,width,true);
 		resultInfo.mask = selectedMask;
-		Object.defineProperty(bestFrame,"setBlack",{value:setBlack});
-		addFormatInfo(bestFrame,selectedMask,width,eccLevel);
+		addFormatInfo(rawFrame,selectedMask,width,eccLevel);
 		var result;
 		switch (info.outputType){
 			case "canvas":
-				result = drawCanvas(info.outputElement,bestFrame,width,scale,padding);
+				result = drawCanvas(info.outputElement,rawFrame,width,scale,padding);
 				break;
 			case "svgFull":
-				result = makeSVG(bestFrame,width,padding);
+				result = makeSVG(rawFrame,width,padding);
 				break;
 			case "svgPath":
-				result = getSVGPath(bestFrame,width,padding);
+				result = getSVGPath(rawFrame,width,padding);
 				break;
 			case "rawArray":
-				result = bestFrame;
+				result = rawFrame;
 				break;
 			case "unmasked":
 				result = rawFrame;

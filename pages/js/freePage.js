@@ -40,7 +40,7 @@ function feedback(input,result,state,elem){
 function makeSymbol(query){
 	var str_input;
 	var padding = 3; // 3 svg units
-	if (query){
+	if (!(query instanceof Event) && typeof query === "object"){
 		str_input = query.data;
 	}else{
 		query = {ecc:null,mask:null};
@@ -179,7 +179,7 @@ function init(){
 	// Autorun generator If the user made a request containing query parameters
 	var query = new queryParams(location.search);
 	var queryData = query.get("data");
-	
+
 	if (queryData) {
 		var parameters = {
 			"data": queryData,
@@ -187,8 +187,7 @@ function init(){
 			"mask": query.get("mask"),
 			"scale": query.get("scale"),
 			"output": query.get("output")
-		};
-			
+		}
 		makeSymbol(parameters);
 		textField.value = queryData;
 		if((/^[1-4]$/).test(parameters.ecc)){

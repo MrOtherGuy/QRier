@@ -40,14 +40,14 @@ function feedback(input,result,state,elem){
 function makeSymbol(query){
 	var str_input;
 	var padding = 3; // 3 svg units
-	if (query){
+	if (!(query instanceof Event) && typeof query === "object"){
 		str_input = query.data;
 	}else{
 		query = {ecc:null,mask:null};
 		str_input = textField.value;
 	}
 	var eccLevel = parseInt(query.ecc) || parseInt(document.getElementById("eccBox").value);
-	var maskNumber = parseInt(query.mask) || parseInt(document.getElementById("maskBox"));
+	var maskNumber = parseInt(query.mask) || parseInt(document.getElementById("maskBox").value);
 	var svg = document.getElementById("svgContainer");
 	var svgPath = document.getElementById("svgPath");
 	try{
@@ -214,8 +214,7 @@ function init(){
 			"mask": query.get("mask"),
 			"scale": query.get("scale"),
 			"output": query.get("output")
-		};
-		
+		}
 		makeSymbol(parameters);
 		textField.value = queryData;
 		if((/^[1-4]$/).test(parameters.ecc)){
