@@ -31,17 +31,16 @@ function makeSymbol(query){
 	try{
 		var result = qr.make(inputText,requestInfo);
 		var feedbackText = inputText.substr(0,44);
-		if (inputText.length > 50){
+		if (inputText.length > 46){
 			feedbackText += "...";
 		}else{
-			feedbackText += inputText.substr(45,3);
+			feedbackText += inputText.substr(44,3);
 		}
 		feedback(feedbackText,result,0);
 	}catch(e){
 		feedback(e,{"1":1},1);
 	}
 }
-
 function setCurrent(tabs){
 	currentTab = tabs[0];
 	}
