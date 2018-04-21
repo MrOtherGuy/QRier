@@ -2,9 +2,9 @@
 
 The purpose of this project was to learn how QR-codes encode data. I mostly relied on information freely available around the internet and going through code of other implementations. You may expect some terminology to be incorrect, but I try my best to use consistent naming on things.
 
-# Information about QR-codes
+## Information about QR-codes
 
-QR-codes (Quick Response Codes) are a type of 2D barcodes which store data in matrix of black and white squares. Data type is arbitrary but most if not all readers interpret it as text. QR-code (The word "symbol" is used later when speaking of specific instance of QR-code) can store up to 7089 characters. The exact number depends on symbol properties. 
+QR-codes (Quick Response Codes) are a type of 2D barcodes which store data in matrix of black and white squares. Data type is arbitrary but most if not all readers interpret payload as text. QR-code (The word "symbol" is used later when speaking of specific instance of QR-code) can store up to 7089 characters. The exact number depends on symbol properties. 
 
 A symbol is defined by four properties:
 
@@ -15,7 +15,7 @@ A symbol is defined by four properties:
 
 The symbol size (aka version, 1-40) is determined by the first 3 properties to accomodate all the data, if possible. Mask number can be freely selected even if spec technically requires encoder to determine and select "best" mask.
 
-This project currently only implements Byte character set ("mode" from here on). The maximum length in byte-mode is 2953 characters, so if you need something longer this proect is not for you. Although it is possible to create a valid symbol with binary data (as in all values 0-255), readers might not understand non-existing code-points (127-159).
+This project currently only implements Byte character set ("mode" from here on). The maximum length in byte-mode is 2953 characters, so if you need something longer this project is not for you. Although it is possible to create a valid symbol with binary data (as in all values 0-255), readers might not understand non-existing code-points (127-159).
 
 [Wikipedia article](https://en.wikipedia.org/wiki/QR_code) explains structure and basics quite well.
 
@@ -31,7 +31,7 @@ Our input is a string of characters. This is first transformed to array form suc
 var input = "Hello"
 // First make a percent encoded version of the input.
 var encoded = encodeURI(input);
-// Loop through characters and sotre their character codes.
+// Loop through characters and store their character codes.
 for char in encoded {	
 	result.push(charCode(char))
 }
@@ -114,13 +114,47 @@ Continue like this until the last message bit is used. The last value is just th
 The resulting encoding for the Example "Hello" will thus be:
 [64,84,134,86,198,198,240,236,17,236,17,236,17]
 
-# Error correction codes
+## Error correction codes
 
-Error correction codes are create per block. To do so, we take a slice from the data array and create error correction codes (ECC) for that. This slice is the size of the block. Since our example only has one block we compute ECCs for that in one go. But say we had some data with length 25 and it would have 3 blocks - 2 of type-1 and 1 of type-2. Block size for type-1 would be 8 and for type-2 9 (type-2 is always one bigger). Type-1 blocks are always computed first regardless of how many of each type there is.
+Error correction codes are created per block. To do so, we take a slice from the data array and create error correction codes (ECC) for that. This slice is the size of the block. Since our example only has one block we compute ECCs for that in one go. But say we had some data with length 25 and it would have 3 blocks - 2 of type-1 and 1 of type-2. Block size for type-1 would be 8 and for type-2 9 (type-2 is always one bigger). Type-1 blocks are always computed first regardless of how many of each type there is.
 
-So we first compute ECC fo elements [0-7] then for [8-15] and last for the single type-2 group [16-24]. The ECCs for different blocks should be stored in their own arrays.
+So we first compute ECC fo elements [0-7] then for [8-15] and last for the single type-2 group [16-24]. The ECCs for different blocks should be stored in their own arrays, because ECCs will be later reordered based on their block.
 
 [link here for error correction algorithm itself]()
 
-QR-codes use Reed-Solomon error correction codes. Many implementations can be used to create these. But there are some key ideas which you should be aware of. First, the size of the finite field is 256. This basically means that our message can have at most 256 different values. A codeword has 8 "bits" regardless of the mode so this is exactly what we need. Second, the algorithm needs some primitive polynomial (may be also called generator polynomial). Different specs (such as other 2d matrix codes) can "freely" select which value they want to use but for QR-codes this is always 0x11d. Third, the value of first consecutive root (FCR) is 0. This really doesn't show up a lot and it took quite some time to figure out. I suppose most RS encoders default to 0, but I was using the same encoder earlier for creating datamatrix (uses FCR = 1) symbols and it worked fine. But suddenly it didn't on QR-codes. This is another somewhat freely selectable value but it needs to be known for both encoder and decoder so it's basically defined in spec.
+QR-codes use Reed-Solomon error correction codes. Many implementations can be used to create these. But there are some key ideas which you should be aware of. First, the size of the finite field is 256. This basically means that our message can have at most 256 different values. A codeword has 8 "bits" regardless of the mode so this is exactly what we need. Second, the algorithm needs some primitive polynomial (may be also called generator polynomial). Different specs (such as other 2d matrix codes) can "freely" select which value they want to use but for QR-codes this is always 0x11d. Third, the value of first consecutive root (FCR) is 0. This really doesn't show up a lot and it took quite some time to figure out. I suppose most RS encoders default to 0, but I was using the same encoder earlier for creating datamatrix (uses FCR = 1) symbols and it worked fine. But suddenly it didn't work on QR-codes. This is another somewhat freely selectable value but it needs to be known for both encoder and decoder so it's basically defined in spec.
 
+To summarize, you would use something like this to create ECCs for each block:
+```
+var dataBlock = [64,84,134,86,198,198,240,236,17,236,17,236,17] // "Hello"
+var ECCs = 13 // This was determined in version selection
+var ECC_block = makeECCArray({data:dataBlock, eccLength: 13, fieldSize:256, primitive: 0x11d, FCR: 0});
+>> ECC_block
+<< [101,148,203,11,83,255,86,112,227,9,227,17,106]
+```
+Great! This is all the data we need. Now it only needs to be assembled to correct order.
+
+## Data interleaving
+
+Codewords are interleaved based on block. This is probably done so that local damage to the symbol doesn't lead to destruction of the whole block. ECCs are similarly interleaved but it's worth to note that ECCs and data codes are *NOT* interleaved with each other. ECCs are instead always packed after interleaved data codes in the data stream.
+
+The interleaving is done by taking the first value of all blocks of type-1 and then taking the first value of all blocks of type-2. Then take the *second* value in same order. As mentioned, type-2 blocks have one extra element so those must be taken last. 
+
+For our example data this interleaving is quite uninteresting. It will just lead to data codes being appended by ECCs so let's use a made up example
+
+```
+t1-block1 = [ 1, 3, 5, 7]
+t1-block2 = [ 2, 4, 6, 8]
+t2-block1 = [11,13,15,17,19]
+t2-block2 = [10,12,14,16,18]
+data      = [1,2,11,10,3,4,13,12,5,6,15,14,7,8,17,16,19,18]
+eccBlock1 = [22,23,24,25]
+eccBlock2 = [26,27,28,29]
+ECCs      = [22,26,23,27,24,28,25,29]
+```
+Result is just data concatenated with ECCs
+`[1,2,11,10,3,4,13,12,5,6,15,14,7,8,17,16,19,18,22,26,23,27,24,28,25,29]`
+
+Now, the message is fully encoded and is ready to be packed to the QR frame.
+
+##
