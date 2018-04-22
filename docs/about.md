@@ -120,7 +120,7 @@ Error correction codes are created per block. To do so, we take a slice from the
 
 So we first compute ECC fo elements [0-7] then for [8-15] and last for the single type-2 group [16-24]. The ECCs for different blocks should be stored in their own arrays, because ECCs will be later reordered based on their block.
 
-[link here for error correction algorithm itself]()
+TODO: error correction algorithm itself
 
 QR-codes use Reed-Solomon error correction codes. Many implementations can be used to create these. But there are some key ideas which you should be aware of. First, the size of the finite field is 256. This basically means that our message can have at most 256 different values. A codeword has 8 "bits" regardless of the mode so this is exactly what we need. Second, the algorithm needs some primitive polynomial (may be also called generator polynomial). Different specs (such as other 2d matrix codes) can "freely" select which value they want to use but for QR-codes this is always 0x11d. Third, the value of first consecutive root (FCR) is 0. This really doesn't show up a lot and it took quite some time to figure out. I suppose most RS encoders default to 0, but I was using the same encoder earlier for creating datamatrix (uses FCR = 1) symbols and it worked fine. But suddenly it didn't work on QR-codes. This is another somewhat freely selectable value but it needs to be known for both encoder and decoder so it's basically defined in spec.
 
@@ -157,4 +157,25 @@ Result is just data concatenated with ECCs
 
 Now, the message is fully encoded and is ready to be packed to the QR frame.
 
-##
+## Frame construction
+
+The QR symbol has three distinct features which are important to know.
+
+1. Data
+2. Function patterns
+3. Mask
+
+We have fully encoded data in previous sections. Functional patterns are patterns within the symbol which don't directly change based on message. These include the three big squares on symbol corners, as well as (possible) smaller squares distributed in grid-like pattern and some format information. Mask, as previously noted, is used to hide strcutures in data that would look like known functional patterns. Mask is applied by XOR-ing the mask image to otherwise fully constructed symbol. And here's the thing - mask should NOT be applied to functional patterns. As such, we need to mark pixels which are functional patterns so we know to not-mask them later.
+
+A single pixel can either be black or white (true or false) so we could in theory describe the whole image as array of boolean values. But we need to somehow store which pixels are part of functional patterns. So instead lets store the image as byte array, where each pixel is 8-bit integer. Now we can store the symbol as follows:
+```
+0 = White
+1 = Black
+2 = White - part of a function pattern
+3 = Black - part of a function pattern
+```
+Sure, we don't need 8 bits per pixel but this has useful properties. The least significant bit tells if the pixel is black or white (whether it's functional pattern or not). The second least significant bit tells if it is function pattern (without caring if it's black or white). This makes it really easy to determine what we should do when applying mask.
+
+## Functional patterns
+
+The byte array is initialized to zeros. Let's put all functional patterns to it first. It doesn't depend on message data other than version and we already know that. To do this, go through all functional pattern and set corresponding frame element to 2 or 3.

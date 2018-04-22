@@ -104,8 +104,8 @@ function QRcode (){
 		this[x + this.width * y] = 1;
 	}
 	
-	var setMask = function(x,y){
-		this[x + this.width * y] = 2;
+	var setMask = function(x,y,n){
+		this[x + this.width * y] = n;
 	}
 	
 	// Returns a version number which is nearly enough to fit data
@@ -194,6 +194,7 @@ function QRcode (){
 		if(!supportSlice){
 			Object.defineProperty(datacodes,"slice",{value:diySlice});
 		}
+		// Array to store resulting data
 		var a_final = new Uint8Array(format.datalength + (format.neccblk1 + format.neccblk2) * format.eccblkwid);
 		// Create ecc blocks and store them to array
 		var a_ecc_blocks = new Array(format.neccblk1 + format.neccblk2);
@@ -206,6 +207,7 @@ function QRcode (){
 			a_ecc_blocks[i] = rs.makeECC({"ecWidth":format.eccblkwid,"dataWidth":format.datablkw + 1,"data":datacodes.slice(dataOffset,dataOffset + format.datablkw + 1)});
 			dataOffset += (format.datablkw + 1);
 		}
+		// Interleave data codes
 		dataOffset = 0;
 		var datablk2offset = format.neccblk1 * format.datablkw;
 		for (i = 0; i < format.datablkw;i++){
@@ -223,6 +225,7 @@ function QRcode (){
 			a_final[dataOffset] = datacodes[datablk2offset + i + (j * (format.datablkw + 1))];
 			dataOffset++;
 		}
+		// ECC blocks come last
 		for (i = 0; i < format.eccblkwid; i++){
 			for(j=0; j < a_ecc_blocks.length; j++){
 				a_final[dataOffset] = a_ecc_blocks[j][i];
@@ -239,24 +242,10 @@ function QRcode (){
 		Object.defineProperty(qrFrame,"width",{value:frameWidth});
 		Object.defineProperty(qrFrame,"isMasked",{value:isMasked});
 		Object.defineProperty(qrFrame,"setBlack",{value:setBlack});
+		Object.defineProperty(qrFrame,"setBlack",{value:setBlack});
 		Object.defineProperty(qrFrame,"setMask",{value:setMask});
-			Object.defineProperty(qrFrame,"getPixel",{value:getPixel});
-		var createAlignmentPattern = function(x,y,frameWidth){
-			var i;
-			qrFrame.setBlack(x , y);
-			for (i = -2; i < 2; i++) {
-				qrFrame.setBlack(x + i,y - 2);
-				qrFrame.setBlack(x - 2, y + i + 1);
-				qrFrame.setBlack(x + 2, y + i);
-				qrFrame.setBlack(x + i + 1, y + 2);
-			}
-			for (i = 0; i < 2; i++) {
-					qrFrame.setMask(x - 1, y + i);
-					qrFrame.setMask(x + 1, y - i);
-					qrFrame.setMask(x - i, y - 1);
-					qrFrame.setMask(x + i, y + 1);
-			}
-		};
+		Object.defineProperty(qrFrame,"getPixel",{value:getPixel});
+		
 	
 	/* 
 	*	Add function patterns to the frame.
@@ -270,7 +259,27 @@ function QRcode (){
 	// 2 = white - masked (part of a function pattern)
 	// 3 = black - masked (part of a function pattern)
 	
+	// setMask() takes the frame value as third parameter
+	
+	var createAlignmentPattern = function(x,y,frameWidth){
+			var i;
+			qrFrame.setMask(x , y, 3);
+			for (i = -2; i < 2; i++) {
+				qrFrame.setMask(x + i, y - 2, 3);
+				qrFrame.setMask(x - 2, y + i + 1, 3);
+				qrFrame.setMask(x + 2, y + i, 3);
+				qrFrame.setMask(x + i + 1, y + 2, 3);
+			}
+			for (i = 0; i < 2; i++) {
+					qrFrame.setMask(x - 1, y + i, 2);
+					qrFrame.setMask(x + 1, y - i, 2);
+					qrFrame.setMask(x - i, y - 1, 2);
+					qrFrame.setMask(x + i, y + 1, 2);
+			}
+		};
+		
 	// Finder patterns
+		
 		var row,col;
 		for (var i = 0; i < 3; i++) {
 			row = 0;
@@ -281,24 +290,24 @@ function QRcode (){
 			if (i == 2){
 				col = (frameWidth - 7);
 			}
-			qrFrame.setBlack(col + 3, row + 3);
+			qrFrame.setMask(col + 3, row + 3, 3);
 			for (var j = 0; j < 6; j++) {
-				qrFrame.setBlack(col + j, row);
-				qrFrame.setBlack(col, row + j + 1);
-				qrFrame.setBlack(col + 6, row + j);
-				qrFrame.setBlack(col + j + 1, row + 6);
+				qrFrame.setMask(col + j, row, 3);
+				qrFrame.setMask(col, row + j + 1, 3);
+				qrFrame.setMask(col + 6, row + j, 3);
+				qrFrame.setMask(col + j + 1, row + 6, 3);
 			}
 			for (j = 1; j < 5; j++) {
-			qrFrame.setMask(col + j, row + 1);
-			qrFrame.setMask(col + 1, row + j + 1);
-			qrFrame.setMask(col + 5, row + j);
-			qrFrame.setMask(col + j + 1, row + 5);
+				qrFrame.setMask(col + j, row + 1, 2);
+				qrFrame.setMask(col + 1, row + j + 1, 2);
+				qrFrame.setMask(col + 5, row + j, 2);
+				qrFrame.setMask(col + j + 1, row + 5, 2);
 			}
 			for (j = 2; j < 4; j++) {
-				qrFrame.setBlack(col + j, row + 2);
-				qrFrame.setBlack(col + 2, row + j + 1);
-				qrFrame.setBlack(col + 4, row + j);
-				qrFrame.setBlack(col + j + 1, row + 4);
+				qrFrame.setMask(col + j, row + 2, 3);
+				qrFrame.setMask(col + 2, row + j + 1, 3);
+				qrFrame.setMask(col + 4, row + j, 3);
+				qrFrame.setMask(col + j + 1, row + 4, 3);
 			}
 		}
 	
@@ -310,7 +319,7 @@ function QRcode (){
 			for (;;) {
 				var x = frameWidth - 7;
 				while (x > dt - 3) {
-					createAlignmentPattern(x, y,frameWidth);
+					createAlignmentPattern(x, y, frameWidth);
 					if (x < dt){
 						break;
 					}
@@ -320,42 +329,45 @@ function QRcode (){
 					break;
 				}
 				y -= dt;
-				createAlignmentPattern(6, y,frameWidth);
-				createAlignmentPattern(y, 6,frameWidth);
+				createAlignmentPattern(6, y, frameWidth);
+				createAlignmentPattern(y, 6, frameWidth);
 			}
 		}
 	
 	// single black, needs to be there
-		qrFrame.setBlack(8,frameWidth - 8);
-	// timing gap - mask only
+		qrFrame.setMask(8, frameWidth - 8, 3);
+	// timing gap - whites
 		for (y = 0; y < 7; y++) {
-			qrFrame.setMask(7,y);
-			qrFrame.setMask(frameWidth - 8, y);
-			qrFrame.setMask(7, y + frameWidth - 7);
+			qrFrame.setMask(7, y, 2);
+			qrFrame.setMask(frameWidth - 8, y, 2);
+			qrFrame.setMask(7, y + frameWidth - 7, 2);
 		}
 		for (x = 0; x < 8; x++) {
-			qrFrame.setMask(x, 7);
-			qrFrame.setMask(x + frameWidth - 8, 7);
-			qrFrame.setMask(x, frameWidth - 8);
+			qrFrame.setMask(x, 7, 2);
+			qrFrame.setMask(x + frameWidth - 8, 7, 2);
+			qrFrame.setMask(x, frameWidth - 8, 2);
 		}
 	
 	// reserve mask-format area
 		for (x = 0; x < 9; x++){
-			qrFrame.setMask(x, 8);
+			qrFrame.setMask(x, 8, 2);
 		}
 		for (x = 0; x < 8; x++) {
-			qrFrame.setMask(x + frameWidth - 8, 8);
-			qrFrame.setMask(8, x);
+			qrFrame.setMask(x + frameWidth - 8, 8, 2);
+			qrFrame.setMask(8, x, 2);
 		}
 		for (y = 0; y < 7; y++){
-			qrFrame.setMask(8, y + frameWidth - 7);
+			qrFrame.setMask(8, y + frameWidth - 7, 2);
 		}
 
 // timing row/col
 		for (x = 0; x < frameWidth - 14; x++){
-			qrFrame[8 + x + frameWidth * 6] = (x & 1) + 1;
-			qrFrame[6 + frameWidth * (8 + x)] = (x & 1) + 1;
+			qrFrame[8 + x + frameWidth * 6] = 3 - (x & 1);
 		}
+		for (x = 0; x < frameWidth - 14; x++){
+			qrFrame[6 + frameWidth * (8 + x)] = 3 - (x & 1)
+		}
+		
 // version block
 		if (version > 6) {
 			var pattern = version_pattern[version - 7];
@@ -364,20 +376,12 @@ function QRcode (){
 			for (x = 0; x < 6; x++){
 				for (y = 0; y < 3; y++, k--){
 					t = (1 & (k > 11 ? version >> (k - 12) : pattern >> k));
-					qrFrame[(5 - x) + frameWidth * (2 - y + frameWidth - 11)] = 2 - t;
-					qrFrame[(2 - y + frameWidth - 11) + frameWidth * (5 - x)] = 2 - t;
+					qrFrame[(5 - x) + frameWidth * (2 - y + frameWidth - 11)] = 2 + t
+					qrFrame[(2 - y + frameWidth - 11) + frameWidth * (5 - x)] = 2 + t
 				}
 			}
 		}
-	// Set black mask bits
-		for (y = 0; y < frameWidth; y++){
-			t = frameWidth * y;
-			for (x = 0; x < frameWidth; x++){
-				if (qrFrame[x + t] & 1){
-					qrFrame[x + t] = 3;
-				}
-			}
-		}
+		
 	// Function patterns in place - now add data
 		pushDataToFrame(qrFrame, data);
 	
@@ -579,15 +583,15 @@ function QRcode (){
 		var k;
 		for (k = 0; k < 8; k++, formatWord >>= 1){
 			if (formatWord & 1) {
-				qrFrame.setBlack(width - 1 - k,8);
-				qrFrame.setBlack(8,k + (k > 5));
+				qrFrame.setBlack(width - 1 - k, 8);
+				qrFrame.setBlack(8, k + (k > 5));
 			}
 		}
 		// high byte
 		for (k = 0; k < 7; k++, formatWord >>= 1){
 			if (formatWord & 1) {
-				qrFrame.setBlack(8,width - 7 + k);
-				qrFrame.setBlack(6 - k + !(k),8);
+				qrFrame.setBlack(8, width - 7 + k);
+				qrFrame.setBlack(6 - k + !(k), 8);
 			}
 		}
 	}
