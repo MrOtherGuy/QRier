@@ -320,9 +320,10 @@ function QRcode (){
 				var x = frameWidth - 7;
 				while (x > dt - 3) {
 					createAlignmentPattern(x, y, frameWidth);
-					if (x < dt){
+					// This is not necessary unless dt < 2 which it never is
+					/*if (x < dt){
 						break;
-					}
+					}*/
 					x -= dt;
 				}
 				if (y <= dt + 9){
@@ -390,48 +391,40 @@ function QRcode (){
 	
 	function pushDataToFrame(qrFrame,data){
 		var bit;
+		var max_idx = qrFrame.width - 1;
 		// position initialized to bottom right
-		var x_pos, y_pos, up, left;
-		x_pos = y_pos = qrFrame.width - 1;
-		up = left = true;
+		var x_pos, y_pos;
+		x_pos = y_pos = max_idx;
+		var x_dir = 1;
+		var y_inc = 0;
+		var y_dir = 1;
 		for (var i = 0; i < data.length; i++) {
 			bit = data[i];
-			for (var j = 0; j < 8; j++, bit <<= 1) {
-				if (0x80 & bit){
+			for (var j = 7; j >= 0; j--) {
+				if ((bit >> j) & 1){
 					qrFrame.setBlack(x_pos,y_pos);
 				}
 				// Adjust x,y until next unmasked coordinate is found
 				do {
-					if (left){
-						x_pos--;
-					} else {
-						x_pos++;
-						if (up) {
-							if (y_pos != 0){
-								y_pos--;
-							} else {
-								x_pos -= 2;
-								up = !up;
-								if (x_pos == 6) {
-									x_pos--;
-									y_pos = 9;
-								}
-							}
-						} else {
-							if (y_pos != qrFrame.width - 1){
-								y_pos++;
-							} else {
-								x_pos -= 2;
-								up = !up;
-								if (x_pos == 6) {
-									x_pos--;
-									y_pos -= 8;
-								}
-							}
+					if((
+								 (y_pos === 0 && y_dir === 1)
+							|| (y_pos === max_idx && y_dir === -1)
+							)	&& y_inc === 1
+						){
+						y_pos -= y_dir;
+						x_pos -= 2;
+						if(x_pos === 5){
+							x_pos--;
 						}
+						y_dir *= -1;
 					}
-					left = !left;
+					x_pos -= x_dir;
+					x_dir *= -1;
+					y_pos -= y_inc * y_dir;
+					y_inc ^= 1;
+					
 				} while (qrFrame.isMasked(x_pos,y_pos));
+				
 			}
 		}
 	}
@@ -584,6 +577,7 @@ function QRcode (){
 		for (k = 0; k < 8; k++, formatWord >>= 1){
 			if (formatWord & 1) {
 				qrFrame.setBlack(width - 1 - k, 8);
+				// k > 5 skips jumps over timing row top left
 				qrFrame.setBlack(8, k + (k > 5));
 			}
 		}
@@ -591,6 +585,7 @@ function QRcode (){
 		for (k = 0; k < 7; k++, formatWord >>= 1){
 			if (formatWord & 1) {
 				qrFrame.setBlack(8, width - 7 + k);
+				// !(k) jumps over timing row in left top
 				qrFrame.setBlack(6 - k + !(k), 8);
 			}
 		}

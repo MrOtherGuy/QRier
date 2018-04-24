@@ -174,8 +174,28 @@ A single pixel can either be black or white (true or false) so we could in theor
 2 = White - part of a function pattern
 3 = Black - part of a function pattern
 ```
-Sure, we don't need 8 bits per pixel but this has useful properties. The least significant bit tells if the pixel is black or white (whether it's functional pattern or not). The second least significant bit tells if it is function pattern (without caring if it's black or white). This makes it really easy to determine what we should do when applying mask.
+Sure, we don't need 8 bits per pixel but this has useful properties. The least significant bit tells if the pixel is black or white (whether it's functional pattern or not). The second least significant bit tells if it is function pattern (without caring if it's black or white). This makes it really easy to determine if we can put data in that pixel and what we should do when applying mask.
 
 ## Functional patterns
 
 The byte array is initialized to zeros. Let's put all functional patterns to it first. It doesn't depend on message data other than version and we already know that. To do this, go through all functional pattern and set corresponding frame element to 2 or 3.
+
+First functional pattern are the Finder patterns - the three big squares. These are always in top left and right and bottom left corners if the symbol is in normal orientation. The symbol can of course be read in any orientation, but in normal orientation the squares are there and message starts from bottom right corner. Finders are always 7 pixels wide(and tall) independent of the version, and their structure is always the same. They are also always surrounded by a 1 pixel wide white border "inside" the symbol.
+
+Second are the aligment blocks. My understanding is that these help the decoder to figure out transformation of the symbol (in 3D-space). These are 5x5 squares with a single black pixel surrounded by whites surrounded by blacks. Their distribution is a uniform grid with right and bottom center starting from 7 pixels from the edge. As in, the center of bottom right pattern is the 7th pixel from bottom and right edge. The distance between elements in the alignment grid is specified in the spec and depends on version. For example this delta for version 7 is 16 and thus the centers for alignment patterns are 16 pixels away from each other.
+
+Fhird, timing columns. These are a sequence of alternating white-black pixels starting from the lower right corner of the top-left finder pattern. Runs right- and downwards until it would hit the other finder pattern. Notice that these may go through alignment blocks. That doesn't matter because alignment blocks are positioned in such way that their pixel values will always match what the timing pattern would have in that coordinate.
+
+Fourth, format information. These tell the encoder what mask and EC-level was used in the symbol. Format sequences are 15 bits long and defined in spec located beside finders. When they would collide with timing row they just continue from the next available position. These are not yet filled with correct information though, but only marked as functional pattern. After determining the mask we fill these as the last step of the encoding process.
+
+For versions > 6 there is a 3x6 version information blocks located to the left side of the right finder pattern and top side of the bottom one. These are filled with a spec defined pattern corresponding to used version.
+
+Last, there is a single black pixel 8 pixels up from bottom and 8 pixels and nine to the right from left edge.
+
+The leftover space will be exactly filled with data.
+
+## Data packing
+
+For this you need to track the absolute x and y coordinate from some corner of the symbol. I like thinking x0 y0 being the top left corner. Data is packed starting from the bottom right-most pixel. So for version 1 symbol (21 units wide) these values are initialized to x=20 y=20. This bit will be the most significant bit of the first data value (black if bit == 1). Next adjust the position by x -= 1. This will be the second most significant bit. Next, x+= 1 followed by y -= 1 (ie. the pixel right above the first one). Then x -= 1 again, and continue like this until all the 8 bits of the data value are used. After that, adjust the position in this same manner but use the most significant bit of the next data value as input.
+
+When you would go to a pixel marked as function pattern you just adjust the position again in this same order and continue normally until you hit symbol edge. If you would decrease y to below 0 you instead decrease x by 2 (the following x += 1 will effectively put you to the pixel beside the previous one). Continue from this in same manner but *downwards* 
