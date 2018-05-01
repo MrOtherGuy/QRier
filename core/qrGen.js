@@ -95,7 +95,6 @@ function QRcode (){
 	var getPixel = function(x,y){
 		return this[x + this.width * y] & 1
 	};
-	
 	var isMasked = function(x,y){
 		return this[x + this.width * y] & 2;
 	}
@@ -320,10 +319,10 @@ function QRcode (){
 				var x = frameWidth - 7;
 				while (x > dt - 3) {
 					createAlignmentPattern(x, y, frameWidth);
-					// This is not necessary unless dt < 2 which it never is
-					/*if (x < dt){
+					// This seems unnecessary but is can happen in versions > 35
+					if (x < dt){
 						break;
-					}*/
+					}
 					x -= dt;
 				}
 				if (y <= dt + 9){
@@ -390,41 +389,52 @@ function QRcode (){
 	}
 	
 	function pushDataToFrame(qrFrame,data){
-		var bit;
 		var max_idx = qrFrame.width - 1;
 		// position initialized to bottom right
-		var x_pos, y_pos;
+		var x_pos, y_pos, goingLeft, goingUp;
+		goingUp = goingLeft = true;
 		x_pos = y_pos = max_idx;
-		var x_dir = 1;
-		var y_inc = 0;
-		var y_dir = 1;
+		
 		for (var i = 0; i < data.length; i++) {
-			bit = data[i];
 			for (var j = 7; j >= 0; j--) {
-				if ((bit >> j) & 1){
+				if ((data[i] >> j) & 1){
 					qrFrame.setBlack(x_pos,y_pos);
 				}
 				// Adjust x,y until next unmasked coordinate is found
-				do {
-					if((
-								 (y_pos === 0 && y_dir === 1)
-							|| (y_pos === max_idx && y_dir === -1)
-							)	&& y_inc === 1
-						){
-						y_pos -= y_dir;
-						x_pos -= 2;
-						if(x_pos === 5){
-							x_pos--;
+				// If/else blocks are annoying but fast because they avoid
+				// unneccary work (goingLeft == true -> only x_pos-- per loop)
+				do{
+					if (goingLeft){
+						x_pos--;
+					} else {
+						x_pos++;
+						if (goingUp) {
+							if (y_pos != 0){
+								y_pos--;
+							} else {
+								x_pos -= 2;
+								goingUp = !goingUp;
+								// Skip vertical timing row
+								if (x_pos === 6) {
+									x_pos--;
+									y_pos = 9;
+								}
+							}
+						} else {
+							if (y_pos != max_idx){
+								y_pos++;
+							} else {
+								x_pos -= 2;
+								goingUp = !goingUp;
+								if (x_pos === 6) {
+									x_pos--;
+									y_pos -= 8;
+								}
+							}
 						}
-						y_dir *= -1;
 					}
-					x_pos -= x_dir;
-					x_dir *= -1;
-					y_pos -= y_inc * y_dir;
-					y_inc ^= 1;
-					
-				} while (qrFrame.isMasked(x_pos,y_pos));
-				
+					goingLeft = !goingLeft;
+				} while (qrFrame.isMasked(x_pos, y_pos));
 			}
 		}
 	}
@@ -605,7 +615,6 @@ function QRcode (){
 		return result
 	}
 	
-	
 	function drawCanvas(canvasElem,qrImage,width,scale,padding){
 		var graphics = canvasElem.getContext("2d");
 		var imageWidth = scale * (width + (2 * padding));
@@ -625,21 +634,54 @@ function QRcode (){
 		return "success"
 	}
 	
-	
-	function makeSVG(qrImage, width,pad){
+	function makeSVG(qrImage, width,pad,img){
 		var imageWidth = width + pad * 2;
-
-		var svg = '<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 ' + imageWidth + ' ' + imageWidth + '" stroke="none" preserveAspectRatio="xMidYMid meet">\n\t<rect width="100%" height="100%" fill="white" />\n\t<path d="';
-		svg += getSVGPath(qrImage,width,pad);
-		svg += '" fill="black" />\n</svg>\n';
+		var svg = '<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 ' + imageWidth + ' ' + imageWidth + '" stroke="none" preserveAspectRatio="xMidYMid meet">\n<defs>\n<clipPath id="dataClip">\n<circle cx="50%" cy="50%" r="' + (width * img.width / 2) + '"></circle>\n</clipPath>\n</defs>\n<rect width="100%" height="100%" fill="white"></rect>\n<path d="';
+		svg += getSVGPath(qrImage,width,pad,img);
+		svg += '" fill="black"></path>\n';
+		if(img.width){
+			var shapeStyle = img.shape === "circle" ? 'clip-path="url(#dataClip)"':"";
+			img.width *= width;
+			var pos = (imageWidth - img.width) / 2;
+			svg += '<image x="' + pos + '" y="' + pos + '" width="' + img.width + '" height="' + img.width + '" xlink:href="' + img.path +'" ' + shapeStyle + '></image>\n';
+		}
+		svg += '</svg>\n';
 		return svg
 	}
 	
-	function getSVGPath(qrFrame,width,pad){
+	function getSVGPath(qrFrame,width,pad,img){
+		var radius = (img.width * width) / 2 || 0;
+		radius *= radius;
+		var shape = img.shape || null;
+		if (radius === 0){
+			shape = null;
+		}
+		// Create a bit free room around icon
+		radius += 7;
+		var center = (width >> 1) + pad;
 		var svg = "";
+		var usable = true;
+		var dy = 0;
+		var dx = 0;
 		for (var y = pad; y < width + pad; y++){
 			for (var x = pad; x < width + pad; x++){
-				if (qrFrame.getPixel(x - pad,y - pad)){
+				switch(shape){
+					case "circle":
+						dx = x - center;
+						dy = y - center;
+						usable = (dx * dx) + (dy * dy) > radius;
+						break;
+					case "square":
+						dx = x - center;
+						dy = y - center;
+						usable = radius < (dx * dx) || radius < (dy * dy);
+						break;
+					default:
+					//	usable = true;
+						break;
+				}
+				
+				if (usable && qrFrame.getPixel(x - pad,y - pad)){
 					svg += "M" + (x) + "," + (y) + " h1v1h-1z ";
 				}
 			}
@@ -660,6 +702,12 @@ function QRcode (){
 	//	info.outputElement - Canvas element to draw to. Canvas only
 	//	info.scale - Width of one module. Canvas only.
 	//	info.containerSize - Width of the containing element. Canvas only
+	//	info.image - { path: <dataURI>,
+	//	               scale: [0-1.0],
+	//	               shape: ["circle","square"]
+	//	             }
+	//	Scale is relative to symbol size without padding
+	//	Shape and scale are used to determine if the square in that coordinate is drawn or not
 
 		var selectedMask = Math.min(Math.max(0,info.maskNumber),9) || 9;
 		var eccLevel = Math.min(Math.max(0,info.eccLevel),4) || 3;
@@ -676,7 +724,7 @@ function QRcode (){
 			// scale and containerSize will be handled later
 		}
 	
-		var resultInfo = {"mask":null,"version":null,"result":null,"width":null};
+		var resultInfo = {"mask":null,"version":null,"result":null,"width":null,"embedWidth":null};
 		var a_input = strToArray(str_input);
 		// Validate some inputs
 		if(!a_input || a_input.length == 0){
@@ -685,7 +733,6 @@ function QRcode (){
 		var format = findVersion(a_input.length,eccLevel);
 		resultInfo.version = format.version;
 		var width = 17 + 4 * format.version;
-		
 		var scale;
 		// if containerSize is defined the symbol scale is set so it can fit the screen.
 		// if not defined then we use scale (or 6 if scale isn't defined)
@@ -720,15 +767,18 @@ function QRcode (){
 		resultInfo.mask = selectedMask;
 		addFormatInfo(rawFrame,selectedMask,width,eccLevel);
 		var result;
+		var embeddedImageInfo = info.image || {"width":0};
+		// Clamp values to 0.0 - 1.0
+		embeddedImageInfo.width = Math.min(Math.max(0, embeddedImageInfo.width), 1) || 0;
 		switch (info.outputType){
 			case "canvas":
 				result = drawCanvas(info.outputElement,rawFrame,width,scale,padding);
 				break;
 			case "svgFull":
-				result = makeSVG(rawFrame,width,padding);
+				result = makeSVG(rawFrame,width,padding,embeddedImageInfo);
 				break;
 			case "svgPath":
-				result = getSVGPath(rawFrame,width,padding);
+				result = getSVGPath(rawFrame,width,padding,embeddedImageInfo);
 				break;
 			case "rawArray":
 				result = rawFrame;
@@ -742,6 +792,7 @@ function QRcode (){
 		}
 		// svg viewbox needs width information
 		resultInfo.width = width + 2 * padding;
+		resultInfo.embedWidth = embeddedImageInfo.width * width;
 		resultInfo.result = result;
 	return resultInfo
 	}

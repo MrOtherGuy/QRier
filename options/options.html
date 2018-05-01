@@ -17,12 +17,10 @@
 	<h3>Technical details</h3>
 	<p>QR codes include some error correction information. The ECC-level is configurable, higher level makes the symbol more resistant to reading errors or symbol destruction. But it makes the symbol bigger for same input (and thus lowers the maximum input length).</p>
 	<p>Symbols are masked with one of the eight pre-defined masks. These help make the symbol easier to read. For example, the symbol shouldn't have additional parts that look like the big squares in corners. By default QRiers tries all of them and selects the best. For really large symbols the automatic selection can be somewhat slow on mobile devices so you can override the mask here.</p>
-	<h3>Changes in 1.4.3</h3>
+	<h3>New in 1.5.0</h3>
 	<ul>
-	<li>Minor change in generator API</li>
-	<li>Editor can now use settings specified in query parameters. Editor defaults to user specified settings when possible.</li>
-	<li>Editor automatic generation is slightly delayed (noticeable at 12+ characters per second)</li>
-	<li>Automatic mask selections should be slightly faster</li>
+	<li>Editor page can now embed images to QR codes</li>
+	<li>Updated generator core</li>
 	</ul>
 	<h3>Known issues</h3>
 	<ul>
