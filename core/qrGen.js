@@ -658,32 +658,35 @@ function QRcode (){
 		}
 		// Create a bit free room around icon
 		radius += 7;
-		var center = (width >> 1) + pad;
+		var dy, dx;
+		dy = dx = (width >> 1);
+		var dy_sqr = dy * dy;
 		var svg = "";
 		var usable = true;
-		var dy = 0;
-		var dx = 0;
 		for (var y = pad; y < width + pad; y++){
 			for (var x = pad; x < width + pad; x++){
 				switch(shape){
 					case "circle":
-						dx = x - center;
-						dy = y - center;
-						usable = (dx * dx) + (dy * dy) > radius;
+						usable = (dx * dx) + dy_sqr > radius;
+						dx--;
 						break;
 					case "square":
-						dx = x - center;
-						dy = y - center;
-						usable = radius < (dx * dx) || radius < (dy * dy);
+						usable = radius < dy_sqr || radius < (dx * dx);
+						dx--;
 						break;
 					default:
 					//	usable = true;
 						break;
 				}
 				
-				if (usable && qrFrame.getPixel(x - pad,y - pad)){
+				if (usable && qrFrame.getPixel(x - pad, y - pad)){
 					svg += "M" + (x) + "," + (y) + " h1v1h-1z ";
 				}
+			}
+			if(shape != null){
+				dy--;
+				dy_sqr = dy * dy;
+				dx += width; 
 			}
 		}
 		return svg
