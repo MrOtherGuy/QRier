@@ -200,26 +200,32 @@ For this you need to track the absolute x and y coordinate from some corner of t
 
 When you would go to a pixel marked as function pattern you just adjust the position again in this same order and continue normally until you hit symbol edge. If you would decrease y to below 0 you instead decrease x by 2 (the following x += 1 will effectively put you to the pixel beside the previous one). Continue from this in same manner but *downwards* 
 
-
-do {
-					/* Flip direction when would collide with symbol edge
-					* This modifies the "starting position" for this loop
-					* The new position is determined according to normal rules,
-					* but as if the current position is this fake one.
-					*/
-					var state = y_pos - y_dir;
-					if(((state === -1) || (state === qrFrame.width)) && y_inc === 1){
-						y_pos -= y_dir;
-						x_pos -= 2;
-						// Skip vertical timing row
-						if(x_pos === 5){
-							x_pos--;
-						}
-						y_dir *= -1;
-					}
-					x_pos -= x_dir;
-					x_dir *= -1;
-					y_pos -= y_inc * y_dir;
-					y_inc ^= 1;
-					
-				} while (qrFrame.isMasked(x_pos,y_pos));
+```javascript
+while(bits){
+	setBitInFrame(x_pos,y_pos,bit);
+	// Adjust position
+	do {
+		/* Flip direction when would collide with symbol edge
+		* This modifies the "starting position" for this loop
+		* The new position is determined according to normal rules,
+		* but as if the current position is this fake one.
+		*/
+		state = y_pos - y_dir;
+		overEdge = ((state === -1) || (state === frame.width)) && (y_inc === 1);
+		if(overEdge){
+			y_pos -= y_dir;
+			x_pos -= 2;
+			// Skip vertical timing row
+			if(x_pos === 5){
+				x_pos--;
+			}
+			y_dir *= -1;
+		}
+		// Normal adjust
+		x_pos -= x_dir;
+		x_dir *= -1;
+		y_pos -= y_inc * y_dir;
+		y_inc ^= 1;
+	} while (frame.isFunctionPattern(x_pos,y_pos));
+}
+```
