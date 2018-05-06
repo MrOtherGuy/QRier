@@ -11,6 +11,60 @@
 	<link href="css/freepage.css" rel="stylesheet" type="text/css"/>
 </head>
 <body>
+	<div class="setting-header">
+		<input type="checkbox" id="showSettings"/>
+		<label for="showSettings" class="button mini">#</label>
+		<div id="settings">
+			<div class="basicSettings setting">
+				<div class="setting">
+					<label>Mask:</label>
+					<select id="maskBox" class="inputbox">
+						<option value="1">Mask 1</option>
+						<option value="2">Mask 2</option>
+						<option value="3">Mask 3</option>
+						<option value="4">Mask 4</option>
+						<option value="5">Mask 5</option>
+						<option value="6">Mask 6</option>
+						<option value="7">Mask 7</option>
+						<option value="8">Mask 8</option>
+						<option value="9" selected>auto</option>
+					</select>
+				</div>
+				<div class="setting">
+					<label>ECC:</label>
+					<select id="eccBox" class="inputbox">
+						<option value="1">L - 7%</option>
+						<option value="2">M - 15%</option>
+						<option value="3" selected>Q - 25%</option>
+						<option value="4">H - 30%</option>
+					</select>
+				</div>
+			</div>
+			<input type="checkbox" id="logoEnabled"/>
+			<label for="logoEnabled" class="button mini setting">🎨</label>
+			<div class="setting" id="logoSelection">
+				<div id="imgPreview">
+					<img height="100%" width="100%" src="">
+				</div>
+				
+				<input id="fileInput" type="file" accept=".png,.jpg,.bmp,.svg,.gif"/>
+				<label class="button" for="fileInput">Browse...</label>
+				<div id="embedPrefs">
+					<div class="setting">
+						<label>Scale:</label>
+						<input id="embedScale" type="number" value="0.4" step="0.05" min="0" max="1.0" class="inputbox">
+					</div>
+					<div class="setting">
+						<label>Shape:</label>
+						<select id="embedShape" class="inputbox">
+							<option value="circle">Circle</option>
+						<option value="square" selected>Square</option>
+					</select>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 	<div id="outputs">
 		<div id="svgContainer">
 			<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 0 0" stroke="none" preserveAspectRatio="xMidYMid meet">
@@ -28,58 +82,14 @@
 	<div id="inputs">
 		<div id="feedbackContainer">
 			<div class="feedback">
-				<span id="feedbackTitle"></span>
-				<span id="feedbackFormat"></span>
+				<div id="feedbackTitle"></div>
+				<div id="feedbackFormat"></div>
 			</div>
 			<a href="#" download="QRier.svg" class="button" id="saveButton" disabled>
 				<img src="../icons/download.svg">
 			</a>
 		</div>
-		<div id="settings">
-			<div class="setting">
-				<form>
-					<label>Select mask:</label>
-					<select id="maskBox">
-						<option value="1">Mask 1</option>
-						<option value="2">Mask 2</option>
-						<option value="3">Mask 3</option>
-						<option value="4">Mask 4</option>
-						<option value="5">Mask 5</option>
-						<option value="6">Mask 6</option>
-						<option value="7">Mask 7</option>
-						<option value="8">Mask 8</option>
-						<option value="9" selected>auto</option>
-					</select>
-				</form>
-			</div>
-			<div class="setting">
-				<form>
-					<label>Select error correction:</label>
-					<select id="eccBox">
-						<option value="1">L - 7%</option>
-						<option value="2">M - 15%</option>
-						<option value="3" selected>Q - 25%</option>
-						<option value="4">H - 30%</option>
-					</select>
-				</form>
-			</div>
-			<div class="setting" id="logoSelection">
-				<input type="checkbox" id="logoEnabled"/>
-				<label>Image</label>
-				<div id="imgPreview">
-					<img height="100%" width="100%" src="">
-				</div>
-				<div id="embedPrefs">
-					<input id="embedScale" type="number" value="0.4" step="0.05" min="0" max="1.0">
-					<label class="button" for="fileInput">Browse...</label>
-					<input id="fileInput" type="file" accept=".png,.jpg,.bmp,.svg,.gif"/>
-					<select id="embedShape">
-						<option value="circle">Circle</option>
-						<option value="square" selected>Square</option>
-					</select>
-				</div>
-			</div>
-		</div>
+		
 		<div id="textField">
 			<div id="textDiv">
 				<textarea name="inputbox" id="input_text" maxlength="3000" rows="4" placeholder="Your text here - 3000 characters max" autofocus></textarea>

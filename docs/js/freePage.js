@@ -227,15 +227,31 @@ function selectPointer(action){
 
 function queryParams(query){
   var str = query.substring(1);
+	var isEmpty = str.length < 1;
   var tokens = str.split("&");
   var entries = {};
-  for(var i = 0;i < tokens.length;i++){
-    var pair = tokens[i].split("=");
-    entries[pair[0]] = decodeURIComponent(pair[1]);
-  }
-  this.get = function(name){
-      return entries[name];
-    }
+	try{
+		for(var i = 0;i < tokens.length;i++){
+			var pair = tokens[i].split("=");
+			if (pair.length > 1){
+				var prefName = pair[0];
+				entries[prefName] = decodeURIComponent(tokens[i].substr(prefName.length));
+			}
+		}
+	}catch(e){
+		// Just catch the exception (malformed uri etc)
+		// Init will ask the full query string next
+		// If the exception was on preference name it will be invalidated later.
+	}
+	this.get = function(name){
+		return entries[name];
+	}
+	this.isEmpty = function(){
+		return isEmpty;
+	}
+	this.getFull = function(){
+		return str;
+	}
 }
 
 function initPageObject(){
@@ -253,7 +269,7 @@ function initPageObject(){
 	page.pointer.orgX = 0;
 	Object.seal(page.pointer);
 	page.state.isTouchDevice = hasTouch();
-	page.state.userNeedsaBetterBrowser = !!navigator.msSaveBlob;
+	page.state.userNeedsaBetterBrowser = !!window.msRequestAnimationFrame;
 	page.state.codeIsEmpty = true;
 	page.state.hasImage = false;
 	page.state.lastObjectUrl = null;
@@ -295,7 +311,7 @@ function init(){
 
 	//IE hacks woo
 	if(page.state.userNeedsaBetterBrowser){
-		page.elements.outputContainer.style.minHeight = "calc(100vh - 150px)";
+		page.elements.outputContainer.style.minHeight = "calc(100vh - 154px)";
 		// No idea why this works
 		document.getElementById("inputs").style.height = "100vh";
 		
@@ -304,15 +320,23 @@ function init(){
 	// Autorun generator If the user made a request containing query parameters
 	var query = new queryParams(location.search);
 	var queryData = query.get("data");
-	if (queryData) {
-		var parameters = {
-			"data": queryData,
-			"ecc": {L:"1",M:"2",Q:"3",H:"4"}[query.get("ecc")],
-			"mask": query.get("mask"),
-			"scale": query.get("scale"),
-			"output": query.get("output")
+	if (!query.isEmpty()) {
+		var parameters;
+		
+		if(queryData){
+			parameters = {
+				"data": queryData,
+				"ecc": {L:"1",M:"2",Q:"3",H:"4"}[query.get("ecc")],
+				"mask": query.get("mask"),
+				"scale": query.get("scale"),
+				"output": query.get("output")
+			}
+		}else{
+			queryData = query.getFull();
+			parameters = {"data": queryData}
 		}
 		makeSymbol(parameters);
+		// init input options to values from query
 		page.elements.textField.value = queryData;
 		if((/^[1-4]$/).test(parameters.ecc)){
 			document.getElementById("eccBox").value = parameters.ecc;

@@ -23,7 +23,7 @@ function makeDownloadLink(e){
 }
 
 function feedback(input,result,state){
-	let isGood = ["Success: ","Error: "];
+	let isGood = ["OK: ","Error: "];
 	page.elements.feedbackTitle.textContent = isGood[state]+input;
 	if(!state){
 		page.elements.feedbackFormat.textContent = "QR-version: "+result.version+" with mask: "+result.mask;
@@ -204,15 +204,31 @@ function selectPointer(action){
 
 function queryParams(query){
   let str = query.substring(1);
+	let isEmpty = str.length < 1;
   let tokens = str.split("&");
   let entries = {};
-  for(let i = 0;i < tokens.length;i++){
-    let pair = tokens[i].split("=");
-    entries[pair[0]] = decodeURIComponent(pair[1]);
-  }
-  this.get = function(name){
-      return entries[name];
-    }
+	try{
+		for(let i = 0;i < tokens.length;i++){
+			let pair = tokens[i].split("=");
+			if (pair.length > 1){
+				let prefName = pair[0];
+				entries[prefName] = decodeURIComponent(tokens[i].substr(prefName.length));
+			}
+		}
+	}catch(e){
+		// Just catch the exception (malformed uri etc)
+		// Init will ask the full query string next
+		// If the exception was on preference name it will be invalidated later.
+	}
+	this.get = function(name){
+		return entries[name];
+	}
+	this.isEmpty = function(){
+		return isEmpty;
+	}
+	this.getFull = function(){
+		return str;
+	}
 }
 
 function initPageObject(){
@@ -271,13 +287,20 @@ function init(){
 	// Autorun generator If the user made a request containing query parameters
 	let query = new queryParams(location.search);
 	let queryData = query.get("data");
-	if (queryData) {
-		let parameters = {
-			"data": queryData,
-			"ecc": {L:"1",M:"2",Q:"3",H:"4"}[query.get("ecc")],
-			"mask": query.get("mask"),
-			"scale": query.get("scale"),
-			"output": query.get("output")
+	if (!query.isEmpty()) {
+		let parameters;
+		
+		if(queryData){
+			parameters = {
+				"data": queryData,
+				"ecc": {L:"1",M:"2",Q:"3",H:"4"}[query.get("ecc")],
+				"mask": query.get("mask"),
+				"scale": query.get("scale"),
+				"output": query.get("output")
+			}
+		}else{
+			queryData = query.getFull();
+			parameters = {"data": queryData}
 		}
 		makeSymbol(parameters);
 		// init input options to values from query
@@ -289,8 +312,7 @@ function init(){
 			document.getElementById("maskBox").value = parameters.mask;
 		}
 	}
-	// feedback the user init ran well and add listeners to generate and copy buttons
-	console.log("generator initialized");
+
 	// Default image size
 	page.elements.svgContainer.style.setProperty("--svg-width", "70%");
 	// Add event listeners for user inputs
@@ -302,7 +324,7 @@ function init(){
 		document.getElementById(el).addEventListener("change",changeSetting,false);
 	}
 	// Image enabled checkbox
-	document.getElementById("logoEnabled").addEventListener("change", toggleImage, false);
+	 document.getElementById("logoEnabled").addEventListener("change", toggleImage, false);
 	// File input
 	document.getElementById("fileInput").addEventListener("change", imageChange, false);
 	// Generate button
@@ -311,4 +333,5 @@ function init(){
 	document.getElementById("saveButton").addEventListener("click", makeDownloadLink, false);
 	// Change image size
 	page.elements.outputContainer[selectPointer("down")] = onPointerDown;
+	console.log("generator initialized");
 }

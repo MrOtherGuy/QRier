@@ -1,32 +1,93 @@
 :root{
-	--edit-height: 150px;
+	--edit-height: 154px;
 }
 body{
-	height: calc(100vh - 16px);
-	margin: 16px 8px 0 8px;
+	height: 100vh;
+	margin: 0px 8px;
 	justify-content: flex-end;
 	display: flex;
 	flex-direction: column;
 	background-color: rgb(10,20,30);
 	color: #ddd;
-	font-size: 1em
-	}
-span{ color: #ddd }
-#settings, #textField{ display: flex }
-.setting{ flex-grow: 1 }
-#embedPrefs{ display:flex; flex-direction: row;flex-wrap:wrap;max-width:160px;}
-#embedScale{ width:4em }
-#logoEnabled:not(:checked)~div{ display:none }
-#logoEnabled:checked+label{ display:none }
-#logoSelection{display:flex;flex-direction:row-reverse;flex-grow:unset}
-#imgPreview{min-height:50px;min-width:50px;width:50px;height:50px;background:white}
-#fileInput{ display:none }
-#textDiv{ width: 100% }
+	font-size: 1em;
+	padding-top:4px;
+	box-sizing: border-box;
+}
+
+#settings,
+#textField,
+.basicSettings{
+	display: flex
+}
+	
+#settings{
+	position:fixed;
+	top:0;
+	left:0;
+	margin-top: -100px;
+	transition: margin-top 0.1s ease-out;
+	padding-top: 4px;
+	width:calc(100vw - 16px);
+	margin-left: 8px;
+	margin-right: 8px;
+	pointer-events:none;
+	background-color: rgba(0,0,0,0.7);
+	flex-wrap:wrap
+}
+
+#showSettings:checked ~ #settings{ margin-top: 0px }
+
+.basicSettings{margin-left: 2em}
+
+.setting{
+	flex-grow: 1;
+	pointer-events:all
+}
+
+.inputbox{
+	width: 5.5em;
+	padding: 2px;
+	border:1px solid darkgrey;
+	box-sizing:content-box;
+	max-height:1.6em;
+	margin-right: 1em;
+}
+
+#embedPrefs{
+	display:flex;
+}
+
+#logoEnabled:not(:checked) ~ div{ display:none }
+
+#logoSelection{
+	display:flex;
+	flex-direction:row-reverse;
+}
+
+#imgPreview{
+	min-height:50px;
+	min-width:50px;
+	width:50px;
+	height:50px;
+	background:white
+}
+
+#fileInput,
+#showSettings,
+#logoEnabled{
+	display:none
+}
+
+#textDiv{
+	width: 100%
+}
+
 #input_text{
 	width: 100%;
 	resize: none;
 	box-sizing: border-box
 }
+
 .button{
 	width: 10%;
 	background-color: #222233;
@@ -37,32 +98,66 @@ span{ color: #ddd }
 	max-width: 120px;
 	cursor: pointer;
 }
-label.button{padding:0 8px}
+
+.button.mini{
+	max-height:1.5em;
+	max-width:1.5em;
+	width:1.5em;
+	min-width:1.5em;
+	padding: 2px !important
+}
+
+label.button{ padding:0 8px }
+.setting-header > label{
+	position:relative;
+	z-index:1;
+}
+	
 .button:hover{ background-color: #224422 }
-.button:active{ background-color: #223311 }
+
+.button:active,
+input[type="checkbox"]:checked + .button{
+	background-color: #223311
+}
+
 .button[disabled]{ display:none }
 .button img{
 	width: 40%;
 	pointer-events: none;
 }
+
 #svgContainer{
 	height: var(--svg-width);
 	width: var(--svg-width)
 }
+
 svg{
 	max-height: 100%;
 	max-width: 100%;
 	width: auto;
 	height: 100%;
 }
-svg[viewBox="0 0 0 0"]{ display:none !important}
+
+svg[viewBox="0 0 0 0"]{ display:none !important;opacity:0}
+
 #outputs{
 	height: calc(100vh - var(--edit-height));
+	flex-grow: 1;
 	width: 100%;
 	touch-action: none;
 }
+
 #feedbackContainer{ display:flex }
+
 .feedback{ width:100% }
+
+.feedback > div {
+	white-space:nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 70vw;
+}
+
 #outputs,
 #svgContainer{
 	display: flex;
