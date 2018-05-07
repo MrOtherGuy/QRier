@@ -212,7 +212,7 @@ function queryParams(query){
 			let pair = tokens[i].split("=");
 			if (pair.length > 1){
 				let prefName = pair[0];
-				entries[prefName] = decodeURIComponent(tokens[i].substr(prefName.length));
+				entries[prefName] = decodeURIComponent(tokens[i].substr(prefName.length + 1));
 			}
 		}
 	}catch(e){

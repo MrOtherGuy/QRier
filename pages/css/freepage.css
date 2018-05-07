@@ -90,7 +90,7 @@ body{
 
 .button{
 	width: 10%;
-	background-color: #222233;
+	background: #222233 no-repeat center/40%;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -104,7 +104,7 @@ body{
 	max-width:1.5em;
 	width:1.5em;
 	min-width:1.5em;
-	padding: 2px !important
+	padding: 2px !important;
 }
 
 label.button{ padding:0 8px }
@@ -121,10 +121,8 @@ input[type="checkbox"]:checked + .button{
 }
 
 .button[disabled]{ display:none }
-.button img{
-	width: 40%;
-	pointer-events: none;
-}
+#genButton{ background-image: url(/icons/button-icon.svg) }
+#saveButton{ background-image: url(/icons/download.svg) }
 
 #svgContainer{
 	height: var(--svg-width);

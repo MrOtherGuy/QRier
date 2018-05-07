@@ -28,7 +28,7 @@ function makeDownloadLink(e){
 }
 
 function feedback(input,result,state){
-	var isGood = ["Success: ","Error: "];
+	var isGood = ["OK: ","Error: "];
 	page.elements.feedbackTitle.textContent = isGood[state]+input;
 	if(!state){
 		page.elements.feedbackFormat.textContent = "QR-version: "+result.version+" with mask: "+result.mask;
@@ -235,7 +235,7 @@ function queryParams(query){
 			var pair = tokens[i].split("=");
 			if (pair.length > 1){
 				var prefName = pair[0];
-				entries[prefName] = decodeURIComponent(tokens[i].substr(prefName.length));
+				entries[prefName] = decodeURIComponent(tokens[i].substr(prefName.length + 1));
 			}
 		}
 	}catch(e){
