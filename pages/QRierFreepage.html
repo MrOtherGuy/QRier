@@ -46,13 +46,16 @@
 				<div id="imgPreview">
 					<img height="100%" width="100%" src="">
 				</div>
-				
 				<input id="fileInput" type="file" accept=".png,.jpg,.bmp,.svg,.gif"/>
 				<label class="button" for="fileInput">Browse...</label>
 				<div id="embedPrefs">
 					<div class="setting">
 						<label>Scale:</label>
 						<input id="embedScale" type="number" value="0.4" step="0.05" min="0" max="1.0" class="inputbox">
+					</div>
+					<div class="setting">
+						<label>Offset:</label>
+						<input id="embedOffset" type="number" value="7" step="1" min="1" max="12" class="inputbox">
 					</div>
 					<div class="setting">
 						<label>Shape:</label>
@@ -88,13 +91,12 @@
 			<a href="#" download="QRier.svg" class="button" id="saveButton" disabled>
 			</a>
 		</div>
-		
 		<div id="textField">
 			<div id="textDiv">
 				<textarea name="inputbox" id="input_text" maxlength="3000" rows="4" placeholder="Your text here - 3000 characters max" autofocus></textarea>
 			</div>
-			<div class="button" id="genButton">
-			</div>
+			<button class="button" id="genButton">
+			</button>
 		</div>
 	</div>
 </body></html>

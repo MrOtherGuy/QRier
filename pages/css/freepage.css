@@ -50,7 +50,11 @@ body{
 	border:1px solid darkgrey;
 	box-sizing:content-box;
 	max-height:1.6em;
-	margin-right: 1em;
+	margin-right: 0.5em;
+}
+
+#embedPrefs .inputbox{
+	width: 4em;
 }
 
 #embedPrefs{
@@ -97,6 +101,7 @@ body{
 	min-width: 60px;
 	max-width: 120px;
 	cursor: pointer;
+	border: none;
 }
 
 .button.mini{

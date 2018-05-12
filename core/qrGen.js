@@ -93,19 +93,19 @@ function QRcode (){
 	};
 	
 	var getPixel = function(x,y){
-		return this[x + this.width * y] & 1
+		return this[x + this.width * y] & 1;
 	};
 	var isMasked = function(x,y){
-		return this[x + this.width * y] & 2;
-	}
+		return !!(this[x + this.width * y] & 2);
+	};
 	
 	var setBlack = function(x,y){
 		this[x + this.width * y] = 1;
-	}
+	};
 	
 	var setMask = function(x,y,n){
 		this[x + this.width * y] = n;
-	}
+	};
 	
 	// Returns a version number which is nearly enough to fit data
 	function approximateVersion(len,q){
@@ -185,7 +185,7 @@ function QRcode (){
 	function encodeData(a_inputStr,format){
 	// Datacodes will include mode,character count of the input string and actual string
 
-		var modes = {"Numeric":"0001","Alphanumeric":"0010","Byte":"0100","Kanji":"1000",};
+		var modes = {"Numeric":"0001","Alphanumeric":"0010","Byte":"0100","Kanji":"1000"};
 	// Only Byte mode is supported for now;
 		var mode = modes.Byte;
 		var datacodes = createCodes(a_inputStr,format.version,format.datalength,mode);
@@ -389,47 +389,31 @@ function QRcode (){
 	}
 	
 	function pushDataToFrame(qrFrame,data){
-		var max_idx = qrFrame.width - 1;
 		// position initialized to bottom right
-		var x_pos, y_pos, goingLeft, goingUp;
+		var x_pos, y_pos, goingLeft, goingUp, max_idx;
 		goingUp = goingLeft = true;
-		x_pos = y_pos = max_idx;
-		
+		x_pos = y_pos = max_idx = qrFrame.width - 1;
+		var limit = 0;
 		for (var i = 0; i < data.length; i++) {
 			for (var j = 7; j >= 0; j--) {
 				if ((data[i] >> j) & 1){
 					qrFrame.setBlack(x_pos,y_pos);
 				}
 				// Adjust x,y until next unmasked coordinate is found
-				// If/else blocks are annoying but fast because they avoid
-				// unneccary work (goingLeft == true -> only x_pos-- per loop)
 				do{
 					if (goingLeft){
 						x_pos--;
 					} else {
 						x_pos++;
-						if (goingUp) {
-							if (y_pos != 0){
-								y_pos--;
-							} else {
-								x_pos -= 2;
-								goingUp = !goingUp;
-								// Skip vertical timing row
-								if (x_pos === 6) {
-									x_pos--;
-									y_pos = 9;
-								}
-							}
+						if (y_pos != limit){
+							goingUp ? y_pos-- : y_pos++;
 						} else {
-							if (y_pos != max_idx){
-								y_pos++;
-							} else {
-								x_pos -= 2;
-								goingUp = !goingUp;
-								if (x_pos === 6) {
-									x_pos--;
-									y_pos -= 8;
-								}
+							limit = goingUp ? max_idx : 0;
+							x_pos -= 2;
+							goingUp = !goingUp;
+							if (x_pos === 6){
+								x_pos--;
+								y_pos += goingUp ? -8 : 9;
 							}
 						}
 					}
@@ -441,39 +425,43 @@ function QRcode (){
 	
 	// Calculate how bad the masked image is
 	// blocks, imbalance, long runs of one color, or finder similarity.
-	function testFrame(maskedFrame,width){
+	// Function patterns should maybe be excluded from badness test but since mask doesn't change them they give same score for each mask 
+	function testFrame(maskedFrame, width){
 
 		// Badness coefficients.
 		var N1 = 3, N2 = 3, N3 = 40, N4 = 10;
 		var runLengths = [];		
-		var x, y, h, b, b1;
+		var x, y;
 		var score = 0;
 		var balance = 0;
 		var state;
-		// blocks of same color.
+		// 2x2 blocks of same color.
 		for (y = 0; y < width - 1; y++){
 			for (x = 0; x < width - 1; x++){
-				state = maskedFrame.getPixel(x,y) + maskedFrame.getPixel(x + 1, y) + maskedFrame.getPixel(x,y + 1) + maskedFrame.getPixel(x + 1,y + 1);
+				state = maskedFrame.getPixel(x, y) + maskedFrame.getPixel(x + 1, y) + maskedFrame.getPixel(x, y + 1) + maskedFrame.getPixel(x + 1, y + 1);
 				if (!(state & 3)){
-						score += N2;
-					}
-			}
-		}
-			// X runs
-		for (y = 0; y < width; y++) {
-			runLengths[0] = 0;
-			for (h = b = x = 0; x < width; x++) {
-				if ((b1 = maskedFrame.getPixel(x,y)) == b){
-					runLengths[h]++;
-				}else{
-					runLengths[++h] = 1;
+					score += N2;
 				}
-				b = b1;
-				balance += b ? 1 : -1;
 			}
-			score += runLength(runLengths,N1,N3,h);
 		}
-
+		// X runs
+		var prev, current, idx;
+		for(y = 0; y < width; y++){
+			prev = maskedFrame.getPixel(0, y);
+			runLengths[0] = 1;
+			idx = 0;
+			for(x = 1; x < width; x++){
+				current = maskedFrame.getPixel(x, y);
+				if(current === prev){
+					runLengths[idx]++;
+				}else{
+					runLengths[++idx] = 1;
+					prev = current;
+				}
+				balance += current ? 1 : -1;
+			}
+			score += runLength(runLengths, N1, N3, idx + 1);
+		}
 		// black/white imbalance
 		if (balance < 0){
 			balance = -balance;
@@ -489,22 +477,25 @@ function QRcode (){
 		score += count * N4;
 			// Y runs
 		runLengths = [];
-		for (x = 0; x < width; x++) {
-			runLengths[0] = 0;
-			for (h = b = y = 0; y < width; y++) {
-				if ((b1 = maskedFrame.getPixel(x,y)) == b){
-					runLengths[h]++;
+		for(x = 0; x < width; x++){
+			prev = maskedFrame.getPixel(x, 0);
+			runLengths[0] = 1;
+			idx = 0;
+			for(y = 1; y < width; y++){
+				current = maskedFrame.getPixel(x, y);
+				if(current === prev){
+					runLengths[idx]++;
 				}else{
-					runLengths[++h] = 1;
+					runLengths[++idx] = 1;
+					prev = current;
 				}
-				b = b1;
 			}
-			score += runLength(runLengths,N1,N3,h);
+			score += runLength(runLengths, N1, N3, idx + 1);
 		}
 		return score;
 	}
 
-	function runLength(runs,N1,N3,length){
+	function runLength(runs, N1, N3, length){
 		var i;
 		var score = 0;
 		for (i = 0; i < length; i++){
@@ -513,12 +504,15 @@ function QRcode (){
 			 }
 		}
 		// Finder-like pattern
-		for (i = 3; i < length - 1; i += 2){
-			// Odd indexes are black - evens are white
-			if (runs[i - 2] == runs[i + 2]
-					&& runs[i + 2] == runs[i - 1]
-					&& runs[i - 1] == runs[i + 1]
-					&& runs[i - 1] * 3 == runs[i]
+		for (i = 2; i < length - 2; i++){
+			// Treats inverted color finder-like patterns as finders
+			if (runs[i] < 3 || runs[i] & 1 === 0){
+				break
+			}
+			if (runs[i - 2] === runs[i + 2]
+					&& runs[i + 2] === runs[i - 1]
+					&& runs[i - 1] === runs[i + 1]
+					&& runs[i - 1] * 3 === runs[i]
 					){
 						score += N3;
 			}
@@ -526,7 +520,7 @@ function QRcode (){
 		return score;
 	}
 	
-	function applyMask(qrFrame,mask,maskNum,width,newMask){
+	function applyMask(qrFrame, mask, maskNum, width, newMask){
 		// Don't generate new mask array when reversing
 		if(newMask){
 			//Make new mask
@@ -580,24 +574,18 @@ function QRcode (){
 		return 0
 	}
 	
-	function addFormatInfo(qrFrame,maskNumber,width,ecc_level){
+	function addFormatInfo(qrFrame, maskNumber, width, ecc_level){
 		// Add format bits to the image
-		var formatWord = format_pattern[maskNumber-1 + ((ecc_level - 1) << 3)];
+		var formatWord = format_pattern[maskNumber - 1 + ((ecc_level - 1) << 3)];
 		var k;
 		for (k = 0; k < 8; k++, formatWord >>= 1){
-			if (formatWord & 1) {
-				qrFrame.setBlack(width - 1 - k, 8);
-				// k > 5 skips jumps over timing row top left
-				qrFrame.setBlack(8, k + (k > 5));
-			}
+			qrFrame[width - 1 - k + 8 * width] = formatWord & 1;
+			qrFrame[8 + (k + (k > 5)) * width] = formatWord & 1;
 		}
 		// high byte
 		for (k = 0; k < 7; k++, formatWord >>= 1){
-			if (formatWord & 1) {
-				qrFrame.setBlack(8, width - 7 + k);
-				// !(k) jumps over timing row in left top
-				qrFrame.setBlack(6 - k + !(k), 8);
-			}
+			qrFrame[8 + (width - 7 + k) * width] = formatWord & 1;
+			qrFrame[6 - k + !(k) + 8 * width] = formatWord & 1;
 		}
 	}
 	
@@ -615,7 +603,7 @@ function QRcode (){
 		return result
 	}
 	
-	function drawCanvas(canvasElem,qrImage,width,scale,padding){
+	function drawCanvas(canvasElem, qrImage, width, scale, padding){
 		var graphics = canvasElem.getContext("2d");
 		var imageWidth = scale * (width + (2 * padding));
 		canvasElem.width = imageWidth;
@@ -634,15 +622,15 @@ function QRcode (){
 		return "success"
 	}
 	
-	function makeSVG(qrImage, width,pad,img){
-		var imageWidth = width + pad * 2;
-		var svg = '<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 ' + imageWidth + ' ' + imageWidth + '" stroke="none" preserveAspectRatio="xMidYMid meet">\n<defs>\n<clipPath id="dataClip">\n<circle cx="50%" cy="50%" r="' + (width * img.width / 2) + '"></circle>\n</clipPath>\n</defs>\n<rect width="100%" height="100%" fill="white"></rect>\n<path d="';
-		svg += getSVGPath(qrImage,width,pad,img);
+	function makeSVG(qrImage, width, pad, img){
+		var symbolWidth = width + pad * 2;
+		var svg = '<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 ' + symbolWidth + ' ' + symbolWidth + '" stroke="none" preserveAspectRatio="xMidYMid meet">\n<defs>\n<clipPath id="dataClip">\n<circle cx="50%" cy="50%" r="' + (width * img.width / 2) + '"></circle>\n</clipPath>\n</defs>\n<rect width="100%" height="100%" fill="white"></rect>\n<path d="';
+		svg += getSVGPath(qrImage, width, pad, img);
 		svg += '" fill="black"></path>\n';
 		if(img.width){
 			var shapeStyle = img.shape === "circle" ? 'clip-path="url(#dataClip)"':"";
 			img.width *= width;
-			var pos = (imageWidth - img.width) / 2;
+			var pos = (symbolWidth - img.width) / 2;
 			svg += '<image x="' + pos + '" y="' + pos + '" width="' + img.width + '" height="' + img.width + '" xlink:href="' + img.path +'" ' + shapeStyle + '></image>\n';
 		}
 		svg += '</svg>\n';
@@ -657,7 +645,7 @@ function QRcode (){
 			shape = null;
 		}
 		// Create a bit free room around icon
-		radius += 7;
+		radius += ((img.offset - 6 ) * Math.abs(img.offset - 6));
 		var dy, dx;
 		dy = dx = (width >> 1);
 		var dy_sqr = dy * dy;
@@ -692,6 +680,17 @@ function QRcode (){
 		return svg
 	}
 	
+	function validate(value, min, max, type){
+	if( typeof value != "number" ){
+		return 0
+	}
+	var result = Math.min(Math.max(min, value), max);
+	if( type === "u" ){
+		result |= 0;
+	}
+	return result
+}
+	
 	this.make = function(str_input,info){
 	//	str_input - input string
 	//	info.maskNumber - mask number 1-9, 9 means automatic
@@ -700,54 +699,47 @@ function QRcode (){
 	//	info.outputType; -	svgPath		- return a string describing svg path
 	//											svgFull		- return a full svg file as string
 	//											canvas		- draws output to specified canvas
-	//											raw				- returns the symbol as Array
+	//											rawArray	- returns the symbol as Array
 	//											unmasked	- returns the Array without a mask
 	//	info.outputElement - Canvas element to draw to. Canvas only
 	//	info.scale - Width of one module. Canvas only.
 	//	info.containerSize - Width of the containing element. Canvas only
 	//	info.image - { path: <dataURI>,
 	//	               scale: [0-1.0],
-	//	               shape: ["circle","square"]
+	//	               shape: ["circle","square"],
+	//								 offset: [1-12], 6 = "center"
 	//	             }
 	//	Scale is relative to symbol size without padding
-	//	Shape and scale are used to determine if the square in that coordinate is drawn or not
-
-		var selectedMask = Math.min(Math.max(0,info.maskNumber),9) || 9;
-		var eccLevel = Math.min(Math.max(0,info.eccLevel),4) || 3;
+	//	Shape, scale and offset are used to determine if the square in that coordinate is drawn or not
+		
+		// SETTINGS VALIDATION
+		var selectedMask = validate(info.maskNumber, 0, 9, "u") || 0x9;
+		var eccLevel = validate(info.eccLevel, 0, 9, "u") || 0x3;
 		var padding = info.imagePadding || 3;
-		if (!(typeof(info.outputType) === "string")){
-			throw "outputType: "+info.outputType+" is not valid";  
+		var logoInfo = info.image || {"width":0};
+		logoInfo.width = validate(logoInfo.width, 0, 1, "f") || 0;
+		logoInfo.offset = validate(logoInfo.offset, 1, 12, "u") || 0x7;
+		// Check that output type is supported
+		if ((["canvas","svgFull","svgPath","rawArray","unmasked"]).indexOf(info.outputType) === -1 ){
+			throw "outputType: " + info.outputType + " is not valid";  
 		}
-		
-		
+		// Canvas output needs a canvas to draw to
 		if (info.outputType === "canvas"){
 			if (info.outputElement.tagName != "CANVAS"){
-				throw "output expected canvasElement but got "+info.outputElement.tagName;
+				throw "output expected canvasElement but got " + info.outputElement.tagName;
 			}
-			// scale and containerSize will be handled later
 		}
-	
-		var resultInfo = {"mask":null,"version":null,"result":null,"width":null,"embedWidth":null};
+		// result information will be stored in this object
+		var resultInfo = {"mask":null, "version":null, "result":null, "width":null, "embedWidth":null};
 		var a_input = strToArray(str_input);
-		// Validate some inputs
+		// No data, no code
 		if(!a_input || a_input.length == 0){
 			throw "No data"
 		}
 		var format = findVersion(a_input.length,eccLevel);
 		resultInfo.version = format.version;
 		var width = 17 + 4 * format.version;
-		var scale;
-		// if containerSize is defined the symbol scale is set so it can fit the screen.
-		// if not defined then we use scale (or 6 if scale isn't defined)
-		if (info.containerSize === null || info.containerSize === undefined){
-			scale = info.scale || 6;
-		} else{
-			// scale < 1 doesn't make any sense
-			scale = Math.max(1,Math.floor(info.containerSize / (width + 2 * padding)));
-		}
-		
-		var message = encodeData(a_input,format);
-		var rawFrame = makeFrame(message,width,format.version);
+		var rawFrame = makeFrame(encodeData(a_input,format), width, format.version);
 		// Allocate equal size array for mask
 		var maskFrame = new Uint8Array(rawFrame.length);
 		if (selectedMask == 9 ){ // auto select mask
@@ -755,38 +747,47 @@ function QRcode (){
 			var score;
 			for (var i = 1; i < 9; i++){
 				// XOR raw frame against mask, can be reversed
-				applyMask(rawFrame,maskFrame,i,width,true);
-				score = testFrame(rawFrame,width);
+				applyMask(rawFrame, maskFrame, i, width, true);
+				addFormatInfo(rawFrame, i, width, eccLevel);
+				score = testFrame(rawFrame, width);
 				if (score < goal){
 					goal = score;
 					selectedMask = i;
 				}
 				// Reverse the masking
-				applyMask(rawFrame,maskFrame,i,width,false);
+				applyMask(rawFrame, maskFrame, i, width, false);
 			}
 		}
 		// Apply the explicitly selected or best mask
-		applyMask(rawFrame,maskFrame,selectedMask,width,true);
+		applyMask(rawFrame, maskFrame, selectedMask, width, true);
 		resultInfo.mask = selectedMask;
-		addFormatInfo(rawFrame,selectedMask,width,eccLevel);
+		addFormatInfo(rawFrame, selectedMask, width, eccLevel);
 		var result;
-		var embeddedImageInfo = info.image || {"width":0};
-		// Clamp values to 0.0 - 1.0
-		embeddedImageInfo.width = Math.min(Math.max(0, embeddedImageInfo.width), 1) || 0;
 		switch (info.outputType){
 			case "canvas":
+				var scale;
+				// if containerSize is defined the symbol is fit to screen
+				// if not defined then we use scale (or 6 if scale isn't defined)
+				if (info.containerSize === null || info.containerSize === undefined){
+					scale = info.scale || 6;
+				} else{
+					// scale < 1 doesn't make any sense
+					scale = Math.max(1,Math.floor(info.containerSize / (width + 2 * padding)));
+				}
 				result = drawCanvas(info.outputElement,rawFrame,width,scale,padding);
 				break;
 			case "svgFull":
-				result = makeSVG(rawFrame,width,padding,embeddedImageInfo);
+				result = makeSVG(rawFrame,width,padding,logoInfo);
 				break;
 			case "svgPath":
-				result = getSVGPath(rawFrame,width,padding,embeddedImageInfo);
+				result = getSVGPath(rawFrame,width,padding,logoInfo);
 				break;
 			case "rawArray":
 				result = rawFrame;
 				break;
 			case "unmasked":
+				// XOR undoes the selected mask
+				applyMask(rawFrame, maskFrame, selectedMask, width, false);
 				result = rawFrame;
 				break;
 			default:
@@ -795,7 +796,7 @@ function QRcode (){
 		}
 		// svg viewbox needs width information
 		resultInfo.width = width + 2 * padding;
-		resultInfo.embedWidth = embeddedImageInfo.width * width;
+		resultInfo.embedWidth = logoInfo.width * width;
 		resultInfo.result = result;
 	return resultInfo
 	}

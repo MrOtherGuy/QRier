@@ -46,6 +46,7 @@ function imageChange(){
 		page.state.dataURI = reader.result;
     page.state.hasDataURI = true;
 		imgElement.src = reader.result;
+		makeSymbol();
   }, false);
 	if (file) {
     reader.readAsDataURL(file);
@@ -88,6 +89,7 @@ function makeSymbol(query){
 	let eccLevel = parseInt(query.ecc) || parseInt(page.options.ECC);
 	let maskNumber = parseInt(query.mask) || parseInt(page.options.mask);
 	let embedImageScale = parseFloat(page.options.embedScale);
+	let innerImageOffset = parseInt(page.options.embedOffset);
 	let innerImageWidth = page.state.hasDataURI ? embedImageScale : 0;
 	let shape = innerImageWidth ? page.options.embedShape : null;
 	let dataURI = page.state.hasDataURI ? page.state.dataURI : "";
@@ -99,7 +101,8 @@ function makeSymbol(query){
 												"eccLevel":eccLevel,
 												"imagePadding":padding,
 												"outputType":"svgPath",
-												"image":{"width":innerImageWidth, "shape":shape}
+												"image":{"width":innerImageWidth, "shape":shape,
+												"offset": innerImageOffset}
 											};
 		let result = page.codeGen.make(str_input, requestInfo);
 		elems.svgPath.setAttribute("d", result.result);
@@ -256,6 +259,7 @@ function initPageObject(){
 	page.options.mask = document.getElementById("maskBox").value;;
 	page.options.embedScale = document.getElementById("embedScale").value;
 	page.options.embedShape = document.getElementById("embedShape").value;
+	page.options.embedOffset = document.getElementById("embedOffset").value;
 	Object.seal(page.options);
 }
 
@@ -279,6 +283,7 @@ function changeSetting(e){
 			return;
 	}
 	page.options[propertyName] = e.target.value;
+	makeSymbol();
 }
 
 function init(){
@@ -319,7 +324,7 @@ function init(){
 	// Text input
 	page.elements.textField.addEventListener("input", lazyMakeSymbol, false);
 	// Preference change
-	let prefIDs = ["eccBox","maskBox","embedScale","embedShape"];
+	let prefIDs = ["eccBox","maskBox","embedScale","embedShape","embedOffset"];
 	for(let el of prefIDs){
 		document.getElementById(el).addEventListener("change",changeSetting,false);
 	}
@@ -334,4 +339,5 @@ function init(){
 	// Change image size
 	page.elements.outputContainer[selectPointer("down")] = onPointerDown;
 	console.log("generator initialized");
+	
 }

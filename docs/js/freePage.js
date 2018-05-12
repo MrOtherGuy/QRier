@@ -51,6 +51,7 @@ function imageChange(){
 		page.state.dataURI = reader.result;
     page.state.hasDataURI = true;
 		imgElement.src = reader.result;
+		makeSymbol();
   }, false);
 	if (file) {
     reader.readAsDataURL(file);
@@ -93,6 +94,7 @@ function makeSymbol(query){
 	var eccLevel = parseInt(query.ecc) || parseInt(page.options.ECC);
 	var maskNumber = parseInt(query.mask) || parseInt(page.options.mask);
 	var embedImageScale = parseFloat(page.options.embedScale);
+	var innerImageOffset = parseInt(page.options.embedOffset);
 	var innerImageWidth = page.state.hasDataURI ? embedImageScale : 0;
 	var shape = innerImageWidth ? page.options.embedShape : null;
 	var dataURI = page.state.hasDataURI ? page.state.dataURI : "";
@@ -104,7 +106,7 @@ function makeSymbol(query){
 												"eccLevel":eccLevel,
 												"imagePadding":padding,
 												"outputType":"svgPath",
-												"image":{"width":innerImageWidth, "shape":shape}
+												"image":{"width":innerImageWidth, "shape":shape, "offset": innerImageOffset}
 											};
 		var result = page.codeGen.make(str_input, requestInfo);
 		elems.svgPath.setAttribute("d", result.result);
@@ -277,9 +279,10 @@ function initPageObject(){
 	page.state.dataURI = "";
 	Object.seal(page.state);
 	page.options.ECC = document.getElementById("eccBox").value;
-	page.options.mask = document.getElementById("maskBox").value;;
+	page.options.mask = document.getElementById("maskBox").value;
 	page.options.embedScale = document.getElementById("embedScale").value;
 	page.options.embedShape = document.getElementById("embedShape").value;
+	page.options.embedOffset = document.getElementById("embedOffset").value;
 	Object.seal(page.options);
 }
 
@@ -298,11 +301,15 @@ function changeSetting(e){
 		case "embedShape":
 			propertyName = "embedShape";
 			break;
+		case "embedOffset":
+			propertyName = "embedOffset";
+			break;
 		default:
 			console.log("invalid property");
 			return;
 	}
 	page.options[propertyName] = e.target.value;
+	makeSymbol();
 }
 
 function init(){
@@ -352,8 +359,8 @@ function init(){
 	// Text input
 	page.elements.textField.addEventListener("input", lazyMakeSymbol, false);
 	// Preference change
-	var prefIDs = ["eccBox","maskBox","embedScale","embedShape"];
-	for(var i = 0; i < 4; i++){
+	var prefIDs = ["eccBox","maskBox","embedScale","embedShape","embedOffset"];
+	for(var i = 0; i < prefIDs.length; i++){
 		document.getElementById(prefIDs[i]).addEventListener("change",changeSetting,false);
 	}
 	// Image enabled checkbox
@@ -367,4 +374,5 @@ function init(){
 	// Change image size
 	page.elements.outputContainer[selectPointer("down")] = onPointerDown;
 	console.log("generator initialized");
+	
 }
