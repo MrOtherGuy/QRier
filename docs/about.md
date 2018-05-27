@@ -184,7 +184,7 @@ First functional pattern are the Finder patterns - the three big squares. These 
 
 Second are the aligment blocks. My understanding is that these help the decoder to figure out transformation of the symbol (in 3D-space). These are 5x5 squares with a single black pixel surrounded by whites surrounded by blacks. Their distribution is a uniform grid with right and bottom center starting from 7 pixels from the edge. As in, the center of bottom right pattern is the 7th pixel from bottom and right edge. The distance between elements in the alignment grid is specified in the spec and depends on version. For example this delta for version 7 is 16 and thus the centers for alignment patterns are 16 pixels away from each other.
 
-Fhird, timing columns. These are a sequence of alternating white-black pixels starting from the lower right corner of the top-left finder pattern. Runs right- and downwards until it would hit the other finder pattern. Notice that these may go through alignment blocks. That doesn't matter because alignment blocks are positioned in such way that their pixel values will always match what the timing pattern would have in that coordinate.
+Third, timing columns. These are a sequence of alternating white-black pixels starting from the lower right corner of the top-left finder pattern. Runs right- and downwards until it would hit the other finder pattern. Notice that these may go through alignment blocks. That doesn't matter because alignment blocks are positioned in such way that their pixel values will always match what the timing pattern would have in that coordinate.
 
 Fourth, format information. These tell the encoder what mask and EC-level was used in the symbol. Format sequences are 15 bits long and defined in spec located beside finders. When they would collide with timing row they just continue from the next available position. These are not yet filled with correct information though, but only marked as functional pattern. After determining the mask we fill these as the last step of the encoding process.
 
@@ -200,6 +200,7 @@ For this you need to track the absolute x and y coordinate from some corner of t
 
 When you would go to a pixel marked as function pattern you just adjust the position again in this same order and continue normally until you hit symbol edge. If you would decrease y to below 0 you instead decrease x by 2 (the following x += 1 will effectively put you to the pixel beside the previous one). Continue from this in same manner but *downwards* 
 
+Example:
 ```javascript
 while(bits){
 	setBitInFrame(x_pos,y_pos,bit);

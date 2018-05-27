@@ -1,5 +1,5 @@
 :root{
-	--edit-height: 154px;
+	--edit-height: 159px;
 }
 body{
 	height: 100vh;
@@ -14,6 +14,10 @@ body{
 	box-sizing: border-box;
 }
 
+.infobar{ width: 100%; text-align: center;}
+.infobar.dark, .infobar a:link{ color: #555; font-size: x-small;}
+.infobar a:visited, .infobar a:active{ color: #999; }
+
 #settings,
 #textField,
 .basicSettings{
@@ -22,16 +26,14 @@ body{
 	
 #settings{
 	position:fixed;
-	top:0;
+	top:1.5em;
 	left:0;
-	margin-top: -100px;
+	margin-top: -140px;
 	transition: margin-top 0.1s ease-out;
-	padding-top: 4px;
 	width:calc(100vw - 16px);
 	margin-left: 8px;
 	margin-right: 8px;
-	pointer-events:none;
-	background-color: rgba(0,0,0,0.7);
+	background-color: rgba(20,20,20,0.7);
 	flex-wrap:wrap
 }
 
@@ -57,11 +59,15 @@ body{
 	width: 4em;
 }
 
-#embedPrefs{
+#embedPrefs,.setting-header{
 	display:flex;
 }
 
-#logoEnabled:not(:checked) ~ div{ display:none }
+.setting-header{
+	background-color: rgba(20,20,20,0.7);
+}
+
+#logoEnabled:not(:checked) ~ .setting{ display:none }
 
 #logoSelection{
 	display:flex;
@@ -102,6 +108,7 @@ body{
 	max-width: 120px;
 	cursor: pointer;
 	border: none;
+	color: #ddd;
 }
 
 .button.mini{
@@ -110,6 +117,12 @@ body{
 	width:1.5em;
 	min-width:1.5em;
 	padding: 2px !important;
+}
+.button.bar{
+	padding: 4px;
+	margin-top: 4px;
+	width: 100%;
+	max-width: unset;
 }
 
 label.button{ padding:0 8px }
@@ -126,7 +139,13 @@ input[type="checkbox"]:checked + .button{
 }
 
 .button[disabled]{ display:none }
-#genButton{ background-image: url(/icons/button-icon.svg) }
+#genButton,#selfButton::after{ background-image: url(/icons/button-icon.svg) }
+#selfButton::after{
+	content: "";
+	width: 1em;
+	height: 1em;
+	margin-left: 6px
+}
 #saveButton{ background-image: url(/icons/download.svg) }
 
 #svgContainer{

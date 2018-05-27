@@ -390,8 +390,8 @@ function QRcode (){
 	
 	function pushDataToFrame(qrFrame,data){
 		// position initialized to bottom right
-		var x_pos, y_pos, goingLeft, goingUp, max_idx;
-		goingUp = goingLeft = true;
+		var x_pos, y_pos, goingUp, max_idx;
+		goingUp = true;
 		x_pos = y_pos = max_idx = qrFrame.width - 1;
 		var limit = 0;
 		for (var i = 0; i < data.length; i++) {
@@ -401,9 +401,7 @@ function QRcode (){
 				}
 				// Adjust x,y until next unmasked coordinate is found
 				do{
-					if (goingLeft){
-						x_pos--;
-					} else {
+					if (x_pos & 1){
 						x_pos++;
 						if (y_pos != limit){
 							goingUp ? y_pos-- : y_pos++;
@@ -416,8 +414,10 @@ function QRcode (){
 								y_pos += goingUp ? -8 : 9;
 							}
 						}
+					}else{
+						x_pos--;
 					}
-					goingLeft = !goingLeft;
+					//goingLeft = !goingLeft;
 				} while (qrFrame.isMasked(x_pos, y_pos));
 			}
 		}
@@ -619,7 +619,7 @@ function QRcode (){
 				}
 			}
 		}
-		return "success"
+		return "CANVAS_OK"
 	}
 	
 	function makeSVG(qrImage, width, pad, img){
@@ -640,10 +640,7 @@ function QRcode (){
 	function getSVGPath(qrFrame,width,pad,img){
 		var radius = (img.width * width) / 2 || 0;
 		radius *= radius;
-		var shape = img.shape || null;
-		if (radius === 0){
-			shape = null;
-		}
+		var shape = (radius === 0) ? null : nullOrValue(img.shape)
 		// Create a bit free room around icon
 		radius += ((img.offset - 6 ) * Math.abs(img.offset - 6));
 		var dy, dx;
@@ -680,16 +677,32 @@ function QRcode (){
 		return svg
 	}
 	
+	function nullOrValue(val){
+		return val === undefined ? null : val;
+	}
+	
+	function makeResultObject(isValid, why, mask, version, resultData, width, logoWidth){
+		return {
+			"isValid":nullOrValue(isValid),
+			"validInfo":nullOrValue(why),
+			"mask":nullOrValue(mask),
+			"version":nullOrValue(version),
+			"result":nullOrValue(resultData),
+			"width":nullOrValue(width),
+			"embedWidth":nullOrValue(logoWidth)
+			}
+	}
+	
 	function validate(value, min, max, type){
-	if( typeof value != "number" ){
-		return 0
+		if( typeof value != "number" ){
+			return 0
+		}
+		var result = Math.min(Math.max(min, value), max);
+		if( type === "u" ){
+			result |= 0;
+		}
+		return result
 	}
-	var result = Math.min(Math.max(min, value), max);
-	if( type === "u" ){
-		result |= 0;
-	}
-	return result
-}
 	
 	this.make = function(str_input,info){
 	//	str_input - input string
@@ -721,7 +734,8 @@ function QRcode (){
 		logoInfo.offset = validate(logoInfo.offset, 1, 12, "u") || 0x7;
 		// Check that output type is supported
 		if ((["canvas","svgFull","svgPath","rawArray","unmasked"]).indexOf(info.outputType) === -1 ){
-			throw "outputType: " + info.outputType + " is not valid";  
+			throw "outputType: " + info.outputType + " is not valid";
+			
 		}
 		// Canvas output needs a canvas to draw to
 		if (info.outputType === "canvas"){
@@ -730,14 +744,14 @@ function QRcode (){
 			}
 		}
 		// result information will be stored in this object
-		var resultInfo = {"mask":null, "version":null, "result":null, "width":null, "embedWidth":null};
+		//var resultInfo = {"mask":null, "version":null, "result":null, "width":null, "embedWidth":null};
 		var a_input = strToArray(str_input);
 		// No data, no code
 		if(!a_input || a_input.length == 0){
-			throw "No data"
+			return makeResultObject(false,"No Data", null, null, null, 0, 0);
 		}
 		var format = findVersion(a_input.length,eccLevel);
-		resultInfo.version = format.version;
+		//resultInfo.version = format.version;
 		var width = 17 + 4 * format.version;
 		var rawFrame = makeFrame(encodeData(a_input,format), width, format.version);
 		// Allocate equal size array for mask
@@ -760,7 +774,7 @@ function QRcode (){
 		}
 		// Apply the explicitly selected or best mask
 		applyMask(rawFrame, maskFrame, selectedMask, width, true);
-		resultInfo.mask = selectedMask;
+		//resultInfo.mask = selectedMask;
 		addFormatInfo(rawFrame, selectedMask, width, eccLevel);
 		var result;
 		switch (info.outputType){
@@ -795,10 +809,10 @@ function QRcode (){
 				break;
 		}
 		// svg viewbox needs width information
-		resultInfo.width = width + 2 * padding;
+		/*resultInfo.width = width + 2 * padding;
 		resultInfo.embedWidth = logoInfo.width * width;
-		resultInfo.result = result;
-	return resultInfo
+		resultInfo.result = result;*/
+	return makeResultObject(true, "QRIER_OK", selectedMask, format.version, result, width + 2 * padding, logoInfo.width * width)
 	}
 
 }

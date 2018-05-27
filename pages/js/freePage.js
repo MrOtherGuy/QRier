@@ -22,11 +22,15 @@ function makeDownloadLink(e){
 	e.target.setAttribute("href",page.state.lastObjectUrl);
 }
 
-function feedback(input,result,state){
-	let isGood = ["OK: ","Error: "];
-	page.elements.feedbackTitle.textContent = isGood[state]+input;
+function createSelfSymbol(){
+	makeSymbol({data: "https://addons.mozilla.org/en-US/firefox/addon/qrier/"});
+}
+
+function feedback(input, state, mask, version){
+	let isGood = ["OK: ","Error: ",""];
+	page.elements.feedbackTitle.textContent = isGood[state] + input;
 	if(!state){
-		page.elements.feedbackFormat.textContent = "QR-version: "+result.version+" with mask: "+result.mask;
+		page.elements.feedbackFormat.textContent = "QR-version: " + version + " - Mask: " + mask;
 		page.elements.saveButton.removeAttribute("disabled");
 	}else{
 		page.elements.feedbackFormat.textContent = "";
@@ -105,24 +109,29 @@ function makeSymbol(query){
 												"offset": innerImageOffset}
 											};
 		let result = page.codeGen.make(str_input, requestInfo);
-		elems.svgPath.setAttribute("d", result.result);
+		let feedbackText;
+		if( !result.isValid ){
+			elems.svgPath.setAttribute("d", "");
+			feedbackText = result.validInfo;
+		}else{
+			elems.svgPath.setAttribute("d", result.result);
+			feedbackText = str_input.substr(0, 48);
+			if (str_input.length > 50){
+				feedbackText += "...";
+			}else{
+				feedbackText += str_input.substr(48, 3);
+			}
+		}
 		// parentNode is SVG root
 		elems.svgPath.parentNode.setAttribute("viewBox", "0 0 " + result.width + " " + result.width);
 		setEmbeddedImageProperties(result.width, result.embedWidth, shape);
-		page.state.codeIsEmpty = false;
-		let feedbackText = str_input.substr(0, 48);
-		if (str_input.length > 50){
-			feedbackText += "...";
-		}else{
-			feedbackText += str_input.substr(48, 3);
-		}
-		
-		feedback(feedbackText, result, 0);
+		feedback(feedbackText, result.isValid ? 0 : 2, result.mask, result.version);
+		page.state.codeIsEmpty = !result.isValid;
 	}catch(e){
 		elems.svgPath.setAttribute("d", "");
 		elems.svgPath.parentNode.setAttribute("viewBox", "0 0 0 0");
-		page.state.codeIsEmpty  = true;
-		feedback(e, {"1":1}, 1);
+		page.state.codeIsEmpty = true;
+		feedback(e.message, 1, null, null);
 	}
 }
 
@@ -312,9 +321,11 @@ function init(){
 		page.elements.textField.value = queryData;
 		if((/^[1-4]$/).test(parameters.ecc)){
 			document.getElementById("eccBox").value = parameters.ecc;
+			page.options.ECC = parameters.ecc;
 		}
 		if((/^[1-9]$/).test(parameters.mask)){
 			document.getElementById("maskBox").value = parameters.mask;
+			page.options.mask = parameters.mask;
 		}
 	}
 
@@ -334,6 +345,8 @@ function init(){
 	document.getElementById("fileInput").addEventListener("change", imageChange, false);
 	// Generate button
 	document.getElementById("genButton").addEventListener("click", makeSymbol, false);
+	// Self Button
+	document.getElementById("selfButton").addEventListener("click", createSelfSymbol, false);
 	// Save button
 	document.getElementById("saveButton").addEventListener("click", makeDownloadLink, false);
 	// Change image size

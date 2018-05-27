@@ -18,7 +18,6 @@ function makeBlob(elem){
 }
 
 function makeDownloadLink(e){
-	
 	if (page.state.userNeedsaBetterBrowser){
 		window.navigator.msSaveBlob(new Blob([page.elements.svgContainer.innerHTML]),"Symbol.svg");
 	}else{
@@ -27,11 +26,20 @@ function makeDownloadLink(e){
 	}
 }
 
-function feedback(input,result,state){
-	var isGood = ["OK: ","Error: "];
-	page.elements.feedbackTitle.textContent = isGood[state]+input;
+function createSelfSymbol(){
+	var path = document.location.pathname;
+	var addr = document.location.origin + path;
+	if (path.charAt(path.length - 1) != "/"){
+		addr += "/";
+	}
+	makeSymbol({data: addr + "?"});
+}
+
+function feedback(input, state, mask, version){
+	var isGood = ["OK: ","Error: ", ""];
+	page.elements.feedbackTitle.textContent = isGood[state] + input;
 	if(!state){
-		page.elements.feedbackFormat.textContent = "QR-version: "+result.version+" with mask: "+result.mask;
+		page.elements.feedbackFormat.textContent = "QR-version: " + version + " - Mask: " + mask;
 		page.elements.saveButton.removeAttribute("disabled");
 	}else{
 		page.elements.feedbackFormat.textContent = "";
@@ -109,28 +117,33 @@ function makeSymbol(query){
 												"image":{"width":innerImageWidth, "shape":shape, "offset": innerImageOffset}
 											};
 		var result = page.codeGen.make(str_input, requestInfo);
-		elems.svgPath.setAttribute("d", result.result);
+		var feedbackText;
+		if( !result.isValid ){
+			elems.svgPath.setAttribute("d", "");
+			feedbackText = result.validInfo;
+		}else{
+			elems.svgPath.setAttribute("d", result.result);
+			feedbackText = str_input.substr(0, 48);
+			if (str_input.length > 50){
+				feedbackText += "...";
+			}else{
+				feedbackText += str_input.substr(48, 3);
+			}
+		}
 		// parentNode is SVG root
 		elems.svgPath.parentNode.setAttribute("viewBox", "0 0 " + result.width + " " + result.width);
 		setEmbeddedImageProperties(result.width, result.embedWidth, shape);
+		feedback(feedbackText, result.isValid ? 0 : 2, result.mask, result.version);
 		/* Workaround for Chromium failing to paint before changing image size */
 		if(page.state.codeIsEmpty){
 			elems.svgContainer.children[0].style.display = "block";
 		}
-		page.state.codeIsEmpty = false;
-		var feedbackText = str_input.substr(0, 48);
-		if (str_input.length > 50){
-			feedbackText += "...";
-		}else{
-			feedbackText += str_input.substr(48, 3);
-		}
-		
-		feedback(feedbackText, result, 0);
+		page.state.codeIsEmpty = !result.isValid;
 	}catch(e){
 		elems.svgPath.setAttribute("d", "");
 		elems.svgPath.parentNode.setAttribute("viewBox", "0 0 0 0");
 		page.state.codeIsEmpty = true;
-		feedback(e, {"1":1}, 1);
+		feedback(e.message, 1, null, null);
 	}
 }
 
@@ -347,9 +360,11 @@ function init(){
 		page.elements.textField.value = queryData;
 		if((/^[1-4]$/).test(parameters.ecc)){
 			document.getElementById("eccBox").value = parameters.ecc;
+			page.options.ECC = parameters.ecc;
 		}
 		if((/^[1-9]$/).test(parameters.mask)){
 			document.getElementById("maskBox").value = parameters.mask;
+			page.options.mask = parameters.mask;
 		}
 	}
 
@@ -369,6 +384,8 @@ function init(){
 	document.getElementById("fileInput").addEventListener("change", imageChange, false);
 	// Generate button
 	document.getElementById("genButton").addEventListener("click", makeSymbol, false);
+	// Self Button
+	document.getElementById("selfButton").addEventListener("click", createSelfSymbol, false);
 	// Save button
 	document.getElementById("saveButton").addEventListener("click", makeDownloadLink, false);
 	// Change image size
