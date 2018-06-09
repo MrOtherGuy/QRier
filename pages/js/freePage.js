@@ -287,6 +287,9 @@ function changeSetting(e){
 		case "embedShape":
 			propertyName = "embedShape";
 			break;
+		case "embedOffset":
+			propertyName = "embedOffset";
+			break
 		default:
 			console.log("invalid property");
 			return;
