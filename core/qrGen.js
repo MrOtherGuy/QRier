@@ -390,8 +390,8 @@ function QRcode (){
 	
 	function pushDataToFrame(qrFrame,data){
 		// position initialized to bottom right
-		var x_pos, y_pos, goingUp, max_idx;
-		goingUp = true;
+		var x_pos, y_pos, goingLeft, goingUp, max_idx;
+		goingUp = goingLeft = true;
 		x_pos = y_pos = max_idx = qrFrame.width - 1;
 		var limit = 0;
 		for (var i = 0; i < data.length; i++) {
@@ -401,7 +401,9 @@ function QRcode (){
 				}
 				// Adjust x,y until next unmasked coordinate is found
 				do{
-					if (x_pos & 1){
+					if (goingLeft){
+						x_pos--;
+					} else {
 						x_pos++;
 						if (y_pos != limit){
 							goingUp ? y_pos-- : y_pos++;
@@ -414,10 +416,8 @@ function QRcode (){
 								y_pos += goingUp ? -8 : 9;
 							}
 						}
-					}else{
-						x_pos--;
 					}
-					//goingLeft = !goingLeft;
+					goingLeft = !goingLeft;
 				} while (qrFrame.isMasked(x_pos, y_pos));
 			}
 		}
