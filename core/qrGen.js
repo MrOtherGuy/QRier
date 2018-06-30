@@ -198,14 +198,24 @@ function QRcode (){
 		// Create ecc blocks and store them to array
 		var a_ecc_blocks = new Array(format.neccblk1 + format.neccblk2);
 		var dataOffset = 0;
+		var eccProperties = {
+			"ecWidth":format.eccblkwid,
+			"dataWidth":format.datablkw,
+			"data":null
+			};
 		for (var i = 0;i < format.neccblk1;i++){
-			a_ecc_blocks[i] = rs.makeECC({"ecWidth":format.eccblkwid,"dataWidth":format.datablkw,"data":datacodes.slice(dataOffset,dataOffset + format.datablkw)});
+			eccProperties.data = datacodes.slice(dataOffset,dataOffset + format.datablkw);
+			a_ecc_blocks[i] = rs.makeECC(eccProperties);
 			dataOffset += format.datablkw;
 		}
+		// Group2 ECC are computed for 1 longer blocks, ECC width is the same
+		eccProperties.dataWidth += 1;
 		for (i;i < a_ecc_blocks.length;i++){
-			a_ecc_blocks[i] = rs.makeECC({"ecWidth":format.eccblkwid,"dataWidth":format.datablkw + 1,"data":datacodes.slice(dataOffset,dataOffset + format.datablkw + 1)});
+			eccProperties.data = datacodes.slice(dataOffset,dataOffset + format.datablkw + 1);
+			a_ecc_blocks[i] = rs.makeECC(eccProperties);
 			dataOffset += (format.datablkw + 1);
 		}
+		
 		// Interleave data codes
 		dataOffset = 0;
 		var datablk2offset = format.neccblk1 * format.datablkw;
@@ -560,7 +570,7 @@ function QRcode (){
 							r3x = (r3x + 1) % 3;
 							break;
 						default:
-							throw "mask number out of range"
+							throw "mask number " + masknum + " is invalid"
 							break;
 
 					}
@@ -693,15 +703,36 @@ function QRcode (){
 			}
 	}
 	
-	function validate(value, min, max, type){
-		if( typeof value != "number" ){
+	function clampToRange(value, min, max, type){
+		if( typeof value != "number" || value < 0 ){
 			return 0
 		}
-		var result = Math.min(Math.max(min, value), max);
-		if( type === "u" ){
-			result |= 0;
+		if(value < min){
+			value = min;
+		}else{
+			if( value > max){
+				value = max;
+			}
 		}
-		return result
+		if( type === "i" ){
+			value |= 0;
+		}
+		return value;
+	}
+	
+	function isOutputValid(type){
+		var retval = true;
+		switch(type){
+			case "canvas":
+			case "svgFull":
+			case "svgPath":
+			case "rawArray":
+			case "unmasked":
+				break;
+			default:
+				retval = false;
+		}
+		return retval;
 	}
 	
 	this.make = function(str_input,info){
@@ -726,16 +757,19 @@ function QRcode (){
 	//	Shape, scale and offset are used to determine if the square in that coordinate is drawn or not
 		
 		// SETTINGS VALIDATION
-		var selectedMask = validate(info.maskNumber, 0, 9, "u") || 0x9;
-		var eccLevel = validate(info.eccLevel, 0, 9, "u") || 0x3;
-		var padding = info.imagePadding || 3;
+		// clampToRange returns 0 for invalid values in which case defaults are used
+		var selectedMask = clampToRange(info.maskNumber, 0, 9, "i") || 0x9;
+		var eccLevel = clampToRange(info.eccLevel, 0, 9, "i") || 0x3;
+		// clamping imagePadding to range 0-12 is kinda arbitrary
+		// but such a huge padding doesn't make sense in any scenario
+		// so in practice this just prevents errors.
+		var padding = clampToRange(info.imagePadding, 0, 12, "f") || 3;
 		var logoInfo = info.image || {"width":0};
-		logoInfo.width = validate(logoInfo.width, 0, 1, "f") || 0;
-		logoInfo.offset = validate(logoInfo.offset, 1, 12, "u") || 0x7;
+		logoInfo.width = clampToRange(logoInfo.width, 0, 1, "f") || 0;
+		logoInfo.offset = clampToRange(logoInfo.offset, 1, 12, "i") || 0x7;
 		// Check that output type is supported
-		if ((["canvas","svgFull","svgPath","rawArray","unmasked"]).indexOf(info.outputType) === -1 ){
+		if (!isOutputValid(info.outputType)){
 			throw "outputType: " + info.outputType + " is not valid";
-			
 		}
 		// Canvas output needs a canvas to draw to
 		if (info.outputType === "canvas"){
@@ -743,15 +777,13 @@ function QRcode (){
 				throw "output expected canvasElement but got " + info.outputElement.tagName;
 			}
 		}
-		// result information will be stored in this object
-		//var resultInfo = {"mask":null, "version":null, "result":null, "width":null, "embedWidth":null};
+
 		var a_input = strToArray(str_input);
 		// No data, no code
 		if(!a_input || a_input.length == 0){
 			return makeResultObject(false,"No Data", null, null, null, 0, 0);
 		}
 		var format = findVersion(a_input.length,eccLevel);
-		//resultInfo.version = format.version;
 		var width = 17 + 4 * format.version;
 		var rawFrame = makeFrame(encodeData(a_input,format), width, format.version);
 		// Allocate equal size array for mask
@@ -774,7 +806,6 @@ function QRcode (){
 		}
 		// Apply the explicitly selected or best mask
 		applyMask(rawFrame, maskFrame, selectedMask, width, true);
-		//resultInfo.mask = selectedMask;
 		addFormatInfo(rawFrame, selectedMask, width, eccLevel);
 		var result;
 		switch (info.outputType){
@@ -805,13 +836,9 @@ function QRcode (){
 				result = rawFrame;
 				break;
 			default:
-				throw "output type: "+info.outputType+" is not supported";
+				throw "output type: " + info.outputType + " is not supported";
 				break;
 		}
-		// svg viewbox needs width information
-		/*resultInfo.width = width + 2 * padding;
-		resultInfo.embedWidth = logoInfo.width * width;
-		resultInfo.result = result;*/
 	return makeResultObject(true, "QRIER_OK", selectedMask, format.version, result, width + 2 * padding, logoInfo.width * width)
 	}
 

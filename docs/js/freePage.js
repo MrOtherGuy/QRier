@@ -143,7 +143,7 @@ function makeSymbol(query){
 		elems.svgPath.setAttribute("d", "");
 		elems.svgPath.parentNode.setAttribute("viewBox", "0 0 0 0");
 		page.state.codeIsEmpty = true;
-		feedback(e.message, 1, null, null);
+		feedback(e, 1, null, null);
 	}
 }
 
@@ -325,6 +325,13 @@ function changeSetting(e){
 	makeSymbol();
 }
 
+function showOptionsIfFits(){
+	var optionStyle = window.getComputedStyle(document.getElementById("settings"));
+	if(parseInt(optionStyle.height) + parseInt(optionStyle.top) < window.innerHeight/9){
+		document.getElementById("showSettings").checked = true;
+	}
+}
+
 function init(){
 	initPageObject();
 	page.codeGen = new QRcode();
@@ -369,7 +376,7 @@ function init(){
 	}
 
 	// Default image size
-	setContainerWidth(70,page.elements.svgContainer);
+	setContainerWidth(60,page.elements.svgContainer);
 	// Add event listeners for user inputs
 	// Text input
 	page.elements.textField.addEventListener("input", lazyMakeSymbol, false);
@@ -391,5 +398,5 @@ function init(){
 	// Change image size
 	page.elements.outputContainer[selectPointer("down")] = onPointerDown;
 	console.log("generator initialized");
-	
+	showOptionsIfFits();
 }
