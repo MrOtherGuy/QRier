@@ -24,10 +24,12 @@ function notifyBackground(output){
 
 function handleResponse(message) {
   console.log(`Resolution:  ${message.response}`);
+	feedback(false,"OK");
 }
 
 function handleError(error) {
   console.log(`Error: ${error}`);
+	feedback(true,"");
 }
 
 function onCreated() {
@@ -44,6 +46,15 @@ function onRemoved() {
 
 function onError() {
   console.log("error removing item:" + browser.runtime.lastError);
+}
+
+function feedback(err,str){
+	var elem = document.getElementById("feedback");
+	var color = err ? "red":"green";
+	var fdb = err ? "Error while saving options, see browser console " + str : "OK";
+	elem.textContent = fdb;
+	elem.style.color = color;
+	return 0
 }
 
 function updateMenus(newMenus){
