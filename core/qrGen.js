@@ -762,8 +762,8 @@ function QRier_Gen (){
 		
 		// SETTINGS VALIDATION
 		// clampToRange returns 0 for invalid values in which case defaults are used
-		var selectedMask = clampToRange(info.maskNumber, 0, 9, "i") || 0x9;
-		var eccLevel = clampToRange(info.eccLevel, 0, 9, "i") || 0x3;
+		var selectedMask = clampToRange(info.maskNumber, 1, 9, "i") || 0x9;
+		var eccLevel = clampToRange(info.eccLevel, 1, 4, "i") || 0x3;
 		// clamping imagePadding to range 0-12 is kinda arbitrary
 		// but such a huge padding doesn't make sense in any scenario
 		// so in practice this just prevents errors.
@@ -821,7 +821,7 @@ function QRier_Gen (){
 				var scale;
 				// if containerSize is defined the symbol is fit to screen
 				// if not defined then we use scale (or 6 if scale isn't defined)
-				if (info.canvasProperties.containerSize === null || info.canvasProperties.containerSize === undefined){
+				if ( clampToRange(info.canvasProperties.containerSize, width + 2 * padding, Infinity, "i") === 0){
 					scale = Math.max(1,info.canvasProperties.scale|0) || 6;
 				} else{
 					// scale < 1 doesn't make any sense
