@@ -22,9 +22,9 @@
 
 'use strict'
 
-function QRcode (){
+function QRier_Gen (){
 	try{
-		var rs = new RSECC({polynomial:0x11d,fieldSize:256,fcr:0});
+		var rs = new QRier_ECCGen({polynomial:0x11d,fieldSize:256,fcr:0});
 	}catch(e){
 		console.log(e);
 		return null;

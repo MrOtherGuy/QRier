@@ -307,7 +307,7 @@ function showOptionsIfFits(){
 
 function init(){
 	initPageObject();
-	page.codeGen = new QRcode();
+	page.codeGen = new QRier_Gen();
 	// Autorun generator If the user made a request containing query parameters
 	let query = new queryParams(location.search);
 	let queryData = query.get("data");

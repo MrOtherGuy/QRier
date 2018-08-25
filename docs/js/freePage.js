@@ -334,7 +334,7 @@ function showOptionsIfFits(){
 
 function init(){
 	initPageObject();
-	page.codeGen = new QRcode();
+	page.codeGen = new QRier_Gen();
 
 	//IE hacks woo
 	if(page.state.userNeedsaBetterBrowser){

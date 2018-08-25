@@ -11,7 +11,7 @@ function feedback(input,result,state){
 }
 
 function makeSymbol(query){
-	var qr = new QRcode();
+	var qr = new QRier_Gen();
 	var eccLevel = options.ECC;
 	var mask = options.mask;
 	var scale = options.scale;

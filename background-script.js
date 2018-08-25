@@ -132,7 +132,7 @@ function setOutput(output){
 	if (info.outputType === "content" && info.os != "android"){
 		browser.browserAction.setPopup({popup:""});
 		if(!QRierObject){
-			QRierObject = new QRcode();
+			QRierObject = new QRier_Gen();
 		}
 	}else{
 		// popup:null should set the default popup but that doesn't work on Android

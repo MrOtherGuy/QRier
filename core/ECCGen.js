@@ -22,7 +22,7 @@
 
 "use strict";
 
-function RSECC(options){
+function QRier_ECCGen(options){
 
 	if (!("Uint8Array" in window)){
 		throw "Browser doesn't support typed arrays";
