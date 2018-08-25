@@ -22,7 +22,7 @@ function makeSymbol(query){
 	var containerWidth = os === "android" ? Math.min(window.innerHeight, window.innerWidth):null;
 	var requestInfo = {	"maskNumber":mask,
 											"eccLevel":eccLevel,
-											"imagePadding":3,
+											"padding":3,
 											"outputType":"canvas",
 											"outputElement":canvas,
 											"scale":scale,

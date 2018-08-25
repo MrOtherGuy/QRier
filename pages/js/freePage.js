@@ -103,7 +103,7 @@ function makeSymbol(query){
 	try{
 		let requestInfo = {	"maskNumber":maskNumber,
 												"eccLevel":eccLevel,
-												"imagePadding":padding,
+												"padding":padding,
 												"outputType":"svgPath",
 												"image":{"width":innerImageWidth, "shape":shape,
 												"offset": innerImageOffset}

@@ -739,7 +739,7 @@ function QRcode (){
 	//	str_input - input string
 	//	info.maskNumber - mask number 1-9, 9 means automatic
 	//	info.eccLevel - error correction level 1-4
-	//	info.imagePadding - empty space around symbol in module units
+	//	info.padding - empty space around symbol in module units
 	//	info.outputType; -	svgPath		- return a string describing svg path
 	//											svgFull		- return a full svg file as string
 	//											canvas		- draws output to specified canvas
@@ -763,7 +763,7 @@ function QRcode (){
 		// clamping imagePadding to range 0-12 is kinda arbitrary
 		// but such a huge padding doesn't make sense in any scenario
 		// so in practice this just prevents errors.
-		var padding = clampToRange(info.imagePadding, 0, 12, "f") || 3;
+		var padding = clampToRange(info.padding, 0, 12, "f") || 3;
 		var logoInfo = info.image || {"width":0};
 		logoInfo.width = clampToRange(logoInfo.width, 0, 1, "f") || 0;
 		logoInfo.offset = clampToRange(logoInfo.offset, 1, 12, "i") || 0x7;
