@@ -48,9 +48,6 @@ function handleInContent(str){
 											"eccLevel":eccLevel,
 											"imagePadding":3,
 											"outputType":"svgFull"
-											/*"outputElement":canvas,
-											"scale":scale,
-											"containerSize":containerWidth*/
 										};
 	try{
 		var result = QRierObject.make(inputText,requestInfo);
@@ -61,7 +58,6 @@ function handleInContent(str){
 			});
 		
 	}catch(e){
-		//feedback(e,{"1":1},1);
 		console.log(e);
 	}
 	}

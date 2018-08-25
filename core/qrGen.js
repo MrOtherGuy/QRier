@@ -740,21 +740,25 @@ function QRcode (){
 	//	info.maskNumber - mask number 1-9, 9 means automatic
 	//	info.eccLevel - error correction level 1-4
 	//	info.padding - empty space around symbol in module units
-	//	info.outputType; -	svgPath		- return a string describing svg path
+	//	info.outputType -		svgPath		- return a string describing svg path
 	//											svgFull		- return a full svg file as string
 	//											canvas		- draws output to specified canvas
 	//											rawArray	- returns the symbol as Array
 	//											unmasked	- returns the Array without a mask
-	//	info.outputElement - Canvas element to draw to. Canvas only
-	//	info.scale - Width of one module. Canvas only.
-	//	info.containerSize - Width of the containing element. Canvas only
+	//  info.canvasProperties - { canvasElement: <HTMLCanvasElement>,
+	//														scale: Width of one module in pixels,
+	//														containerSize: Width of the containing element in pixels
+	//													}
+	//	Eventual width of the image is <containerSize> if the property exists
+	//  If not, then width of one module is <scale> (or default 6px when width is not defined) 
+	// 
 	//	info.image - { path: <dataURI>,
 	//	               scale: [0-1.0],
 	//	               shape: ["circle","square"],
 	//								 offset: [1-12], 6 = "center"
 	//	             }
 	//	Scale is relative to symbol size without padding
-	//	Shape, scale and offset are used to determine if the square in that coordinate is drawn or not
+	//	Shape, scale and offset are used to determine if the module in that coordinate is drawn or not
 		
 		// SETTINGS VALIDATION
 		// clampToRange returns 0 for invalid values in which case defaults are used
@@ -773,8 +777,12 @@ function QRcode (){
 		}
 		// Canvas output needs a canvas to draw to
 		if (info.outputType === "canvas"){
-			if (info.outputElement.tagName != "CANVAS"){
-				throw "output expected canvasElement but got " + info.outputElement.tagName;
+			if (info.canvasProperties.canvasElement){
+				if(info.canvasProperties.canvasElement.tagName != "CANVAS"){
+					throw "Invalid output element: Expected 'CANVAS' but got '" + info.canvasProperties.canvasElement.tagName + "'";
+				}
+			}else{
+				throw "Outuput element is not defined"
 			}
 		}
 
@@ -813,13 +821,13 @@ function QRcode (){
 				var scale;
 				// if containerSize is defined the symbol is fit to screen
 				// if not defined then we use scale (or 6 if scale isn't defined)
-				if (info.containerSize === null || info.containerSize === undefined){
-					scale = info.scale || 6;
+				if (info.canvasProperties.containerSize === null || info.canvasProperties.containerSize === undefined){
+					scale = Math.max(1,info.canvasProperties.scale|0) || 6;
 				} else{
 					// scale < 1 doesn't make any sense
-					scale = Math.max(1,Math.floor(info.containerSize / (width + 2 * padding)));
+					scale = Math.max(1,Math.floor(info.canvasProperties.containerSize / (width + 2 * padding)));
 				}
-				result = drawCanvas(info.outputElement,rawFrame,width,scale,padding);
+				result = drawCanvas(info.canvasProperties.outputElement,rawFrame,width,scale,padding);
 				break;
 			case "svgFull":
 				result = makeSVG(rawFrame,width,padding,logoInfo);

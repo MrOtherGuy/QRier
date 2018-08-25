@@ -24,9 +24,11 @@ function makeSymbol(query){
 											"eccLevel":eccLevel,
 											"padding":3,
 											"outputType":"canvas",
-											"outputElement":canvas,
-											"scale":scale,
-											"containerSize":containerWidth
+											"canvasProperties":{
+												"canvasElement":canvas,
+												"scale":scale,
+												"containerSize":containerWidth
+											}
 										};
 	try{
 		var result = qr.make(inputText,requestInfo);
