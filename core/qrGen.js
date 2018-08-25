@@ -827,7 +827,7 @@ function QRcode (){
 					// scale < 1 doesn't make any sense
 					scale = Math.max(1,Math.floor(info.canvasProperties.containerSize / (width + 2 * padding)));
 				}
-				result = drawCanvas(info.canvasProperties.outputElement,rawFrame,width,scale,padding);
+				result = drawCanvas(info.canvasProperties.canvasElement,rawFrame,width,scale,padding);
 				break;
 			case "svgFull":
 				result = makeSVG(rawFrame,width,padding,logoInfo);
