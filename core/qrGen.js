@@ -1,7 +1,7 @@
 /*
     QRier QR-code generator library
 		
-    Copyright (C) 2017 - 2018  MrOtherGuy
+    Copyright (C) 2017 - 2022  MrOtherGuy
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 		
-		Contact: qrier_dev@outlook.com
+		Contact: jastekken@outlook.com
 		
 */
 
@@ -96,7 +96,7 @@ function QRier_Gen (){
 		return this[x + this.width * y] & 1;
 	};
 	var isMasked = function(x,y){
-		return !!(this[x + this.width * y] & 2);
+		return (this[x + this.width * y] & 2) >> 1
 	};
 	
 	var setBlack = function(x,y){
@@ -110,9 +110,9 @@ function QRier_Gen (){
 	// Returns a version number which is nearly enough to fit data
 	function approximateVersion(len,q){
 		var v = 1;
-		var cap = [19,16,13,9][q - 1];
-		var c = [15,12,9,6][q - 1];
-		q = 4 - (q >> 1);
+    var cap = 22 - (q * 3) - (q & 4 >> 2);
+		var c = 18 - q * 3;
+    q = 4 - (q >> 1);
 		while(len > cap){
 			cap += c;
 			c += q;
@@ -409,7 +409,7 @@ function QRier_Gen (){
 				if ((data[i] >> j) & 1){
 					qrFrame.setBlack(x_pos,y_pos);
 				}
-				// Adjust x,y until next unmasked coordinate is found
+        // Adjust x,y until next unmasked coordinate is found
 				do{
 					if (goingLeft){
 						x_pos--;
@@ -530,7 +530,7 @@ function QRier_Gen (){
 		return score;
 	}
 	
-	function applyMask(qrFrame, mask, maskNum, width, newMask){
+	function applyMask(qrFrame, maskNum, width, newMask){
 		// Don't generate new mask array when reversing
 		if(newMask){
 			//Make new mask
@@ -541,46 +541,51 @@ function QRier_Gen (){
 				offset = y * width;
 				r3y = r3y % 3;
 				for (var x = 0, r3x = 0; x < width; x++){
-					switch (maskNum) {
+          var bit = qrFrame.isMasked(x,y) ^ 1;
+					var mask_bit;
+          switch (maskNum) {
 						case 1:
-							mask[offset + x] = !((x + y) & 1) & !qrFrame.isMasked(x,y);
-							break;
+              mask_bit = (x + y) & 1;
+              break;
 						case 2:
-							mask[offset + x] = !(y & 1) & !qrFrame.isMasked(x,y);
-							break;
+              mask_bit = y & 1;
+              break;
 						case 3:
-							mask[offset + x] = !(x % 3) & !qrFrame.isMasked(x,y);
-							break;
+              mask_bit = x % 3;
+              break;
 						case 4: 
-							mask[offset + x] = !((x + y) % 3) & !qrFrame.isMasked(x,y);
-							break;
+              mask_bit = (x + y) % 3;
+              break;
 						case 5:
-							mask[offset + x] = !((((x / 3) | 0) + (y >> 1)) & 1) & !qrFrame.isMasked(x,y);
-							break;
+              mask_bit = (((x / 3) | 0) + (y >> 1)) & 1;
+              break;
 						case 6:
-							mask[offset + x] = !((x & y & 1) + (r3x && r3y)) & !qrFrame.isMasked(x,y);
-							r3x = (r3x + 1) % 3;
+              mask_bit = (x & y & 1) + (r3x > 0 && r3y > 0 ? 1 : 0); 
+              r3x = (r3x + 1) % 3;
 							break;
 						case 7:
-							mask[offset + x] = !(((x & y & 1) + (r3x && (r3x === r3y))) & 1) & !qrFrame.isMasked(x,y);
-							r3x = (r3x + 1) % 3;
+              mask_bit = ((x & y & 1) + (r3x > 0 && r3x === r3y ? 1 : 0)) & 1;
+              r3x = (r3x + 1) % 3;
 							break;
 						case 8:
-							mask[offset + x] = !(((r3x && (r3x === r3y)) + ((x + y) & 1)) & 1) & !qrFrame.isMasked(x,y);
-							r3x = (r3x + 1) % 3;
+              mask_bit = ((r3x > 0 && r3x === r3y ? 1 : 0) + ((x + y) & 1)) & 1;
+              r3x = (r3x + 1) % 3;
 							break;
 						default:
 							throw "mask number " + masknum + " is invalid"
 							break;
 
 					}
+          mask_bit = (mask_bit === 0 ? 1 : 0) & bit;
+          qrFrame[offset + x] ^= (mask_bit << 2) | mask_bit;
 				}
 			}
-		}
-		// XOR against mask
-		for(var i = 0; i < qrFrame.length; i++){
-			qrFrame[i] ^= mask[i];
-		}
+		}else{
+      for(var i = 0; i < qrFrame.length; i++){
+        var mask_bit = qrFrame[i] & 4;
+        qrFrame[i] ^= (mask_bit | (mask_bit >> 2));
+      }
+    }
 		return 0
 	}
 	
@@ -795,13 +800,12 @@ function QRier_Gen (){
 		var width = 17 + 4 * format.version;
 		var rawFrame = makeFrame(encodeData(a_input,format), width, format.version);
 		// Allocate equal size array for mask
-		var maskFrame = new Uint8Array(rawFrame.length);
 		if (selectedMask == 9 ){ // auto select mask
 			var goal = Infinity; // Any score is better than none
 			var score;
 			for (var i = 1; i < 9; i++){
 				// XOR raw frame against mask, can be reversed
-				applyMask(rawFrame, maskFrame, i, width, true);
+				applyMask(rawFrame, i, width, true);
 				addFormatInfo(rawFrame, i, width, eccLevel);
 				score = testFrame(rawFrame, width);
 				if (score < goal){
@@ -809,11 +813,11 @@ function QRier_Gen (){
 					selectedMask = i;
 				}
 				// Reverse the masking
-				applyMask(rawFrame, maskFrame, i, width, false);
+				applyMask(rawFrame, i, width, false);
 			}
 		}
 		// Apply the explicitly selected or best mask
-		applyMask(rawFrame, maskFrame, selectedMask, width, true);
+		applyMask(rawFrame, selectedMask, width, true);
 		addFormatInfo(rawFrame, selectedMask, width, eccLevel);
 		var result;
 		switch (info.outputType){
@@ -840,7 +844,7 @@ function QRier_Gen (){
 				break;
 			case "unmasked":
 				// XOR undoes the selected mask
-				applyMask(rawFrame, maskFrame, selectedMask, width, false);
+				applyMask(rawFrame, selectedMask, width, false);
 				result = rawFrame;
 				break;
 			default:
