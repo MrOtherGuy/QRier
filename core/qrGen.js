@@ -1,36 +1,385 @@
 /*
-    QRier QR-code generator library
-		
-    Copyright (C) 2017 - 2022  MrOtherGuy
+ *  QRier QR-code generator library
+ *
+ *  Copyright (C) 2017 - 2022  MrOtherGuy
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>
+ *
+ * Contact: jastekken@outlook.com
+ *
+ */
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+import { QRier_ECCGen } from "./ECCGen.js";
+import { QRFrame } from "./qrFrame.js";
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+class QRier_Gen{
+  #ECCGen;
+  constructor(){
+    this.#ECCGen = new QRier_ECCGen({ fcr: 0 });
+  }
+  
+  make(str_input, info){
+  //  str_input - input string
+  //  info.maskNumber - mask number 1-9, 9 means automatic
+  //  info.eccLevel - error correction level 1-4
+  //  info.padding - empty space around symbol in module units
+  //  info.outputType -   svgPath   - return a string describing svg path
+  //                      svgFull   - return a full svg file as string
+  //                      canvas    - draws output to specified canvas
+  //                      rawArray  - returns the symbol as Array
+  //                      unmasked  - returns the Array without a mask
+  //  info.canvasProperties - {
+  //                            canvasElement: <HTMLCanvasElement>,
+  //                            scale: Width of one module in pixels,
+  //                            containerSize: Width of the containing element in pixels
+  //                          }
+  //  Eventual width of the image is <containerSize> if the property exists
+  //  If not, then width of one module is <scale>
+  //  (or default 6px when width is not defined) 
+  // 
+  //  info.image - {
+  //                 path: <dataURI>,
+  //                 scale: [0-1.0],
+  //                 shape: ["circle","square"],
+  //                 offset: [1-12], 6 = "center"
+  //               }
+  //  Scale is relative to symbol size without padding
+  //  Shape, scale and offset are used to determine if the module in that coordinate is drawn or not
+    
+    // SETTINGS VALIDATION
+    // clampToRange returns 0 for invalid values in which case defaults are used
+    let selectedMask = QRier_Gen.#clampToRange(info.maskNumber, 1, 9, true) || 0x9;
+    const eccLevel = QRier_Gen.#clampToRange(info.eccLevel, 1, 4, true) || 0x3;
+    // clamping imagePadding to range 0-12 is kinda arbitrary
+    // but such a huge padding doesn't make sense in any scenario
+    // so in practice this just prevents errors.
+    const padding = QRier_Gen.#clampToRange(info.padding, 0, 12, false) || 3;
+    const logoInfo = info.image || {"width":0};
+    logoInfo.width = QRier_Gen.#clampToRange(logoInfo.width, 0, 1, false) || 0;
+    logoInfo.offset = QRier_Gen.#clampToRange(logoInfo.offset, 1, 12, true) || 0x7;
+    
+    if (!QRier_Gen.#isOutputVariant(info.outputType)){
+      throw new Error(`outputType: ${info.outputType} is not valid`);
+    }
+    
+    // Canvas output needs a canvas to draw to
+    if (info.outputType === QRier_Gen.OUTPUTMODE_CANVAS){
+      if (!info.canvasProperties.canvasElement instanceof HTMLCanvasElement){
+        throw new Error("invalid reference to <canvas>")
+      }
+    }
+    
+    const a_input = QRier_Gen.#strToArray(str_input);
+    // No data, no code
+    if(!a_input || a_input.length == 0){
+      return QRier_Gen.QRier_Result.Empty();
+    }
+    
+    const format = QRier_Gen.#Version.from(a_input.length, eccLevel);
+    const width = 17 + 4 * format.version;
+    const rawFrame = new QRFrame(this.encodeData(a_input,format),format);
+    selectedMask = rawFrame.determineMask(selectedMask);
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
-		
-		Contact: jastekken@outlook.com
-		
-*/
+    let result;
+    switch (info.outputType){
+      case QRier_Gen.OUTPUTMODE_CANVAS:
+        let scale;
+        // if containerSize is defined the symbol is fit to screen
+        // if not defined then we use scale (or 6 if scale isn't defined)
+        if ( QRier_Gen.#clampToRange(info.canvasProperties.containerSize, width + 2 * padding, Infinity, true) === 0){
+          scale = Math.max(1,info.canvasProperties.scale|0) || 6;
+        } else{
+          // scale < 1 doesn't make any sense
+          scale = Math.max(1,Math.floor(info.canvasProperties.containerSize / (width + 2 * padding)));
+        }
+        result = QRier_Gen.drawCanvas(info.canvasProperties.canvasElement,rawFrame,width,scale,padding);
+        break;
+      case QRier_Gen.OUTPUTMODE_SVG:
+        result = QRier_Gen.makeSVG(rawFrame,width,padding,logoInfo);
+        break;
+      case QRier_Gen.OUTPUTMODE_PATH:
+        result = QRier_Gen.createSVGPath(rawFrame,width,padding,logoInfo);
+        break;
+      case QRier_Gen.OUTPUTMODE_UNMASKED:
+        // XOR undoes the selected mask and fall through
+        rawFrame.applyMask(selectedMask, false);
+      case QRier_Gen.OUTPUTMODE_ARRAY:
+        result = rawFrame;
+        break;
+      default:
+        throw "output type: " + info.outputType + " is not supported";
+        break;
+    }
+    return new QRier_Gen.QRier_Result(
+      true,
+      "QRIER_OK",
+      selectedMask,
+      format.version,
+      result,
+      width + 2 * padding,
+      logoInfo.width * width
+    )
+  }
+  
+  static drawCanvas(canvasElem, qrImage, width, scale, padding){
+    const ctx = canvasElem.getContext("2d");
+    const imageWidth = scale * (width + (2 * padding));
+    canvasElem.width = imageWidth;
+    canvasElem.height = imageWidth;
+    ctx.clearRect(0, 0, imageWidth, imageWidth);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0,0,imageWidth,imageWidth);
+    ctx.fillStyle = "#000";
+    for( let i = 0; i < width; i++ ){
+      for( let j = 0; j < width; j++ ){
+        if( qrImage.getPixel(j,i) ){
+          ctx.fillRect(scale * (padding + j),scale * (padding + i),scale,scale);
+        }
+      }
+    }
+    return "CANVAS_OK"
+  }
+  
+  static createCodes(a_str,format){
+    const MODE_INDICATOR_LENGTH = 4;
+    const byte_capacity = format.dataLength;
+    const charCount = a_str.length;
+    const charCountIndicatorLength = format.version < 10 ? 8 : 16;
+    const dataLength = MODE_INDICATOR_LENGTH + charCountIndicatorLength + charCount * 8;
+  
+    const i_padZeros = Math.min(byte_capacity * 8 - dataLength, 4);
+    const mod = (8 - ((dataLength + i_padZeros) & 0x7)) & 0x7;
+    let dif_c = (byte_capacity * 8 - (dataLength + i_padZeros + mod)) / 8;
 
-'use strict'
+    let arr_data = new Uint8Array(byte_capacity);
+    let idx = 0;
+    // This does't support anything other than byte encoding 0100 = 4
+    arr_data[idx] = (4 << 4) + (charCount >> (charCountIndicatorLength - 4));
+    idx++;
+    if(charCountIndicatorLength === 16){
+      arr_data[idx] = (charCount >> 4) & 0xff;
+      idx++;
+    }
+    arr_data[idx] = (charCount << 4) + (a_str[0] >> 4);
+    idx++;
+    for(let i = 1; i < a_str.length;i++){
+      arr_data[idx] = (a_str[i - 1] << 4) + (a_str[i] >> 4);
+      idx++;
+    }
+    arr_data[idx] = (a_str[a_str.length - 1] << 4);
+    idx++;
+    // At this point there should be correct zero paddings because of the left shifts
+    while(dif_c > 0){
+      arr_data[idx++] = 0xec;
+      if(dif_c > 1){
+        arr_data[idx++] = 0x11;
+        dif_c -= 2;
+      }else{
+        break;
+      }
+    }
+    return arr_data;
+  }
 
-function QRier_Gen (){
-	try{
-		var rs = new QRier_ECCGen({polynomial:0x11d,fieldSize:256,fcr:0});
-	}catch(e){
-		console.log(e);
-		return null;
-	}
-	var currentSymbol = null;
-	var blockFormats = new Uint8Array([
+  encodeData(a_inputStr,format){
+    // Datacodes will include mode,character count of the input string and actual string
+    let datacodes = QRier_Gen.createCodes(a_inputStr,format);
+    // Payload data array is ready now
+
+    // Array to store resulting data
+    var a_final = new Uint8Array(format.dataLength + (format.neccblk1 + format.neccblk2) * format.eccblkwid);
+    // Create ecc blocks and store them to array
+    let a_ecc_blocks = new Array(format.neccblk1 + format.neccblk2);
+    let dataOffset = 0;
+    let eccProperties = {
+      "ecWidth":format.eccblkwid,
+      "dataWidth":format.datablkw,
+      "data":null
+    };
+    let i = 0; 
+    for (i;i < format.neccblk1;i++){
+      eccProperties.data = datacodes.slice(dataOffset,dataOffset + format.datablkw);
+      a_ecc_blocks[i] = this.#ECCGen.makeECC(eccProperties);
+      dataOffset += format.datablkw;
+    }
+    // Group2 ECC are computed for 1 longer blocks, ECC width is the same
+    eccProperties.dataWidth += 1;
+    for (i;i < a_ecc_blocks.length;i++){
+      eccProperties.data = datacodes.slice(dataOffset,dataOffset + format.datablkw + 1);
+      a_ecc_blocks[i] = this.#ECCGen.makeECC(eccProperties);
+      dataOffset += (format.datablkw + 1);
+    }
+    
+    // Interleave data codes
+    dataOffset = 0;
+    const datablk2offset = format.neccblk1 * format.datablkw;
+    i = 0;
+    for (i; i < format.datablkw;i++){
+      for (let j = 0;j < format.neccblk1;j++){
+        a_final[dataOffset] = datacodes[i + j * format.datablkw];
+        dataOffset++;
+      }
+      for (let j = 0; j < format.neccblk2;j++){
+        a_final[dataOffset] = datacodes[datablk2offset + i + (j * (format.datablkw + 1))];
+        dataOffset++;
+      }
+    }
+    // Last bits only go to block2
+    for (let j = 0; j < format.neccblk2;j++){
+      a_final[dataOffset] = datacodes[datablk2offset + i + (j * (format.datablkw + 1))];
+      dataOffset++;
+    }
+    // ECC blocks come last
+    for (let i = 0; i < format.eccblkwid; i++){
+      for(let j = 0; j < a_ecc_blocks.length; j++){
+        a_final[dataOffset] = a_ecc_blocks[j][i];
+        dataOffset++;
+      }
+    }
+    return a_final;
+  }
+  
+  static makeSVG(qrImage, width, pad, img){
+    const symbolWidth = width + pad * 2;
+    let svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 ${symbolWidth} ${symbolWidth}" stroke="none" preserveAspectRatio="xMidYMid meet">
+<defs>
+<clipPath id="dataClip">
+<circle cx="50%" cy="50%" r="${(width * img.width / 2)}"></circle>
+</clipPath>
+</defs>
+<rect width="100%" height="100%" fill="white"></rect>
+<path d="`;
+    svg += QRier_Gen.createSVGPath(qrImage, width, pad, img);
+    svg += '" fill="black"></path>\n';
+    if(img.width){
+      const shapeStyle = img.shape === "circle" ? 'clip-path="url(#dataClip)"':"";
+      img.width *= width;
+      const pos = (symbolWidth - img.width) / 2;
+      svg += `<image x="${pos}" y="${pos}" width="${img.width}" height="${img.width}" xlink:href="${img.path}" ${shapeStyle}></image>\n`;
+    }
+    svg += '</svg>\n';
+    return svg
+  }
+  
+  static createSVGPath(qrFrame,width,pad,img){
+    let radius = (img.width * width) / 2 || 0;
+    radius *= radius;
+    const shape = (radius === 0) ? null : img.shape === undefined ? null : img.shape;
+    // Create a bit free room around icon
+    radius += ((img.offset - 6 ) * Math.abs(img.offset - 6));
+    let dy, dx;
+    dy = dx = (width >> 1);
+    let dy_sqr = dy * dy;
+    let svg = "";
+    let usable = true;
+    for (let y = pad; y < width + pad; y++){
+      for (let x = pad; x < width + pad; x++){
+        switch(shape){
+          case "circle":
+            usable = (dx * dx) + dy_sqr > radius;
+            dx--;
+            break;
+          case "square":
+            usable = radius < dy_sqr || radius < (dx * dx);
+            dx--;
+            break;
+          default:
+          //  usable = true;
+            break;
+        }
+        
+        if (usable && qrFrame.getPixel(x - pad, y - pad)){
+          svg += `M${x},${y} h1v1h-1z `;
+        }
+      }
+      if(shape != null){
+        dy--;
+        dy_sqr = dy * dy;
+        dx += width; 
+      }
+    }
+    return svg
+  }
+  
+  static #strToArray(str){
+    const uString = encodeURI(str);
+    let result = [];
+    for (let i = 0; i < uString.length; i++){
+      if(uString[i] === "%"){
+        result.push( Number.parseInt( uString.substr(i + 1, 2), 16) );
+        i += 2;
+      }else{
+        result.push( uString.charCodeAt(i) );
+      }
+    }
+    return result
+  }
+    
+  static #Version = class{
+    constructor(version, ecclevel, neccblk1, neccblk2, datablkw, eccblkwid, dataLength){
+      this.version = version;
+      this.ECCLevel = ecclevel;
+      this.neccblk1 = neccblk1;
+      this.neccblk2 = neccblk2;
+      this.datablkw = datablkw;
+      this.eccblkwid = eccblkwid;
+      this.dataLength = dataLength;
+    }
+    static from(len,level){
+      let neccblk1,neccblk2,datablkw,eccblkwid,max_length;
+      let version = QRier_Gen.#Version.approximate(len,level);
+      let offset = (level - 1) * 4 + (version - 1) * 16;
+      while (version < 41){
+        neccblk1 = QRier_Gen.#Version.blockFormats[offset];
+        neccblk2 = QRier_Gen.#Version.blockFormats[offset + 1];
+        datablkw = QRier_Gen.#Version.blockFormats[offset + 2];
+        eccblkwid = QRier_Gen.#Version.blockFormats[offset + 3];
+        max_length = datablkw * (neccblk1 + neccblk2) + neccblk2 - 3 + (version <= 9);
+        if (len <= max_length){
+          break;
+        }
+        version++;
+        offset += 16;
+      }
+      if (version >= 41){
+        throw "Data is too long"
+      }
+      let datalength = datablkw * (neccblk1 + neccblk2) + neccblk2;
+      return new QRier_Gen.#Version(
+        version,
+        level,
+        neccblk1,
+        neccblk2,
+        datablkw,
+        eccblkwid,
+        datalength
+      )
+    }
+    static approximate(len,q){
+      let v = 1;
+      let cap = 22 - (q * 3) - (q & 4 >> 2);
+      let c = 18 - q * 3;
+      q = 4 - (q >> 1);
+      while(len > cap){
+        cap += c;
+        c += q;
+        v++;
+      }
+      return v;
+    }
+    static blockFormats = new Uint8Array([
     1, 0, 19, 7, 1, 0, 16, 10, 1, 0, 13, 13, 1, 0, 9, 17,
     1, 0, 34, 10, 1, 0, 28, 16, 1, 0, 22, 22, 1, 0, 16, 28,
     1, 0, 55, 15, 1, 0, 44, 26, 2, 0, 17, 18, 2, 0, 13, 22,
@@ -71,787 +420,66 @@ function QRier_Gen (){
     4, 18, 122, 30, 13, 32, 46, 28, 48, 14, 24, 30, 42, 32, 15, 30,
     20, 4, 117, 30, 40, 7, 47, 28, 43, 22, 24, 30, 10, 67, 15, 30,
     19, 6, 118, 30, 18, 31, 47, 28, 34, 34, 24, 30, 20, 61, 15, 30
-]);
+  ]);
+  }
 
-	var alignment_deltas = [0, 11, 15, 19, 23, 27, 31,16, 18, 20, 22, 24, 26, 28, 20, 22, 24, 24, 26, 28, 28, 22, 24, 24,26, 26, 28, 28, 24, 24, 26, 26, 26, 28, 28, 24, 26, 26, 26, 28, 28];
-	var version_pattern = [0xc94, 0x5bc, 0xa99, 0x4d3, 0xbf6, 0x762, 0x847, 0x60d,0x928, 0xb78, 0x45d, 0xa17, 0x532, 0x9a6, 0x683, 0x8c9,0x7ec, 0xec4, 0x1e1, 0xfab, 0x08e, 0xc1a, 0x33f, 0xd75,0x250, 0x9d5, 0x6f0, 0x8ba, 0x79f, 0xb0b, 0x42e, 0xa64,0x541, 0xc69];
-	var format_pattern = [0x77c4, 0x72f3, 0x7daa, 0x789d, 0x662f, 0x6318, 0x6c41, 0x6976,0x5412, 0x5125, 0x5e7c, 0x5b4b, 0x45f9, 0x40ce, 0x4f97, 0x4aa0,0x355f, 0x3068, 0x3f31, 0x3a06, 0x24b4, 0x2183, 0x2eda, 0x2bed,0x1689, 0x13be, 0x1ce7, 0x19d0, 0x0762, 0x0255, 0x0d0c, 0x083b];
-	
-	var supportSlice = (typeof(new Uint8Array(1).slice) === "function");
-	
-	var diySlice = function(start, end){
-			end = end || this.length;
-			start = Math.min(Math.max(0, start),this.length);
-			if (this.length < end ){
-				end = this.length;
-			}
-			var a = new Uint8Array(end - start);
-			for (var i = 0; i < a.length; i++){
-				a[i] = this[start + i];
-			}
-			return a;
-	};
-	
-	var getPixel = function(x,y){
-		return this[x + this.width * y] & 1;
-	};
-	var isMasked = function(x,y){
-		return (this[x + this.width * y] & 2) >> 1
-	};
-	
-	var setBlack = function(x,y){
-		this[x + this.width * y] = 1;
-	};
-	
-	var setMask = function(x,y,n){
-		this[x + this.width * y] = n;
-	};
-	
-	// Returns a version number which is nearly enough to fit data
-	function approximateVersion(len,q){
-		var v = 1;
-    var cap = 22 - (q * 3) - (q & 4 >> 2);
-		var c = 18 - q * 3;
-    q = 4 - (q >> 1);
-		while(len > cap){
-			cap += c;
-			c += q;
-			v++;
-		}
-		return v;
-	}
-	// Loop through version data until data fits the frame
-	function findVersion(len,level){
-		var neccblk1,neccblk2,datablkw,eccblkwid,max_length;
-		var version = approximateVersion(len,level);
-		var offset = (level - 1) * 4 + (version - 1) * 16;
-		while (version < 41){
-			neccblk1 = blockFormats[offset];
-			neccblk2 = blockFormats[offset + 1];
-			datablkw = blockFormats[offset + 2];
-			eccblkwid = blockFormats[offset + 3];
-			max_length = datablkw * (neccblk1 + neccblk2) + neccblk2 - 3 + (version <= 9);
-			if (len <= max_length){
-				break;
-			}
-			version++;
-			offset += 16;
-		}
-		if (version >= 41){
-			throw "Data is too long "
-		}
-		var datalength = datablkw * (neccblk1 + neccblk2) + neccblk2;
-	return {"version":version,"neccblk1":neccblk1,"neccblk2":neccblk2,"datablkw":datablkw,"eccblkwid":eccblkwid,"datalength":datalength}
-}
-	
-	function createCodes(a_str,version,byte_capacity,modeIndicator){
-
-		var charCount = a_str.length;
-		var charCountIndicatorLength = version < 10 ? 8 : 16;
-		var dataLength = modeIndicator.length + charCountIndicatorLength + charCount * 8;
-	
-		var i_padZeros = Math.min(byte_capacity * 8 - dataLength, 4);
-		var mod = (8 - ((dataLength + i_padZeros) & 0x7)) & 0x7;
-		var dif_c = (byte_capacity * 8 - (dataLength + i_padZeros + mod)) / 8;
-		var dif_cRem = 0;
-		var padBytes = [0xec,0x11];
-		var arr_data = new Uint8Array(byte_capacity);
-		var idx = 0;
-		// This does't support anything other than byte encoding 0100 = 4
-		arr_data[idx] = (4 << 4) + (charCount >> (charCountIndicatorLength - 4));
-		idx++;
-		if(charCountIndicatorLength === 16){
-			arr_data[idx] = (charCount >> 4) & 0xff;
-			idx++;
-		}
-		arr_data[idx] = (charCount << 4) + (a_str[0] >> 4);
-		idx++;
-		for(var i = 1; i < a_str.length;i++){
-			arr_data[idx] = (a_str[i - 1] << 4) + (a_str[i] >> 4);
-			idx++;
-		}
-		arr_data[idx] = (a_str[a_str.length - 1] << 4);
-		idx++;
-		// At this point there should be correct zero paddings because of the left shifts
-		while(dif_c){
-			arr_data[idx] = padBytes[dif_cRem];
-			dif_cRem ^= 1;
-			idx++;
-			dif_c--;
-		}
-		return arr_data;
-	}
-
-	function encodeData(a_inputStr,format){
-	// Datacodes will include mode,character count of the input string and actual string
-
-		var modes = {"Numeric":"0001","Alphanumeric":"0010","Byte":"0100","Kanji":"1000"};
-	// Only Byte mode is supported for now;
-		var mode = modes.Byte;
-		var datacodes = createCodes(a_inputStr,format.version,format.datalength,mode);
-		// Payload data array is ready now
-		if(!supportSlice){
-			Object.defineProperty(datacodes,"slice",{value:diySlice});
-		}
-		// Array to store resulting data
-		var a_final = new Uint8Array(format.datalength + (format.neccblk1 + format.neccblk2) * format.eccblkwid);
-		// Create ecc blocks and store them to array
-		var a_ecc_blocks = new Array(format.neccblk1 + format.neccblk2);
-		var dataOffset = 0;
-		var eccProperties = {
-			"ecWidth":format.eccblkwid,
-			"dataWidth":format.datablkw,
-			"data":null
-			};
-		for (var i = 0;i < format.neccblk1;i++){
-			eccProperties.data = datacodes.slice(dataOffset,dataOffset + format.datablkw);
-			a_ecc_blocks[i] = rs.makeECC(eccProperties);
-			dataOffset += format.datablkw;
-		}
-		// Group2 ECC are computed for 1 longer blocks, ECC width is the same
-		eccProperties.dataWidth += 1;
-		for (i;i < a_ecc_blocks.length;i++){
-			eccProperties.data = datacodes.slice(dataOffset,dataOffset + format.datablkw + 1);
-			a_ecc_blocks[i] = rs.makeECC(eccProperties);
-			dataOffset += (format.datablkw + 1);
-		}
-		
-		// Interleave data codes
-		dataOffset = 0;
-		var datablk2offset = format.neccblk1 * format.datablkw;
-		for (i = 0; i < format.datablkw;i++){
-			for (var j = 0;j < format.neccblk1;j++){
-				a_final[dataOffset] = datacodes[i + j * format.datablkw];
-				dataOffset++;
-			}
-			for (j = 0; j < format.neccblk2;j++){
-				a_final[dataOffset] = datacodes[datablk2offset + i + (j * (format.datablkw + 1))];
-				dataOffset++;
-			}
-		}
-		// Last bits only go to block2
-		for (j = 0; j < format.neccblk2;j++){
-			a_final[dataOffset] = datacodes[datablk2offset + i + (j * (format.datablkw + 1))];
-			dataOffset++;
-		}
-		// ECC blocks come last
-		for (i = 0; i < format.eccblkwid; i++){
-			for(j=0; j < a_ecc_blocks.length; j++){
-				a_final[dataOffset] = a_ecc_blocks[j][i];
-				dataOffset++;
-			}
-		}
-	
-		return a_final;
-	}
-	
-	function makeFrame(data,frameWidth,version){
-		var qrFrame = new Uint8Array(frameWidth*frameWidth);
-		// Add utility methods to the array object
-		Object.defineProperty(qrFrame,"width",{value:frameWidth});
-		Object.defineProperty(qrFrame,"isMasked",{value:isMasked});
-		Object.defineProperty(qrFrame,"setBlack",{value:setBlack});
-		Object.defineProperty(qrFrame,"setBlack",{value:setBlack});
-		Object.defineProperty(qrFrame,"setMask",{value:setMask});
-		Object.defineProperty(qrFrame,"getPixel",{value:getPixel});
-		
-	
-	/* 
-	*	Add function patterns to the frame.
-	* Black bits are set to black - whites are set as masked ones
-	* Blacks are set as masked only after all the function patterns are set
-	*/
-	
-	// frame values:
-	// 0 = white
-	// 1 = black
-	// 2 = white - masked (part of a function pattern)
-	// 3 = black - masked (part of a function pattern)
-	
-	// setMask() takes the frame value as third parameter
-	
-	var createAlignmentPattern = function(x,y,frameWidth){
-			var i;
-			qrFrame.setMask(x , y, 3);
-			for (i = -2; i < 2; i++) {
-				qrFrame.setMask(x + i, y - 2, 3);
-				qrFrame.setMask(x - 2, y + i + 1, 3);
-				qrFrame.setMask(x + 2, y + i, 3);
-				qrFrame.setMask(x + i + 1, y + 2, 3);
-			}
-			for (i = 0; i < 2; i++) {
-					qrFrame.setMask(x - 1, y + i, 2);
-					qrFrame.setMask(x + 1, y - i, 2);
-					qrFrame.setMask(x - i, y - 1, 2);
-					qrFrame.setMask(x + i, y + 1, 2);
-			}
-		};
-		
-	// Finder patterns
-		
-		var row,col;
-		for (var i = 0; i < 3; i++) {
-			row = 0;
-			col = 0;
-			if (i == 1){
-				row = (frameWidth - 7);
-			}
-			if (i == 2){
-				col = (frameWidth - 7);
-			}
-			qrFrame.setMask(col + 3, row + 3, 3);
-			for (var j = 0; j < 6; j++) {
-				qrFrame.setMask(col + j, row, 3);
-				qrFrame.setMask(col, row + j + 1, 3);
-				qrFrame.setMask(col + 6, row + j, 3);
-				qrFrame.setMask(col + j + 1, row + 6, 3);
-			}
-			for (j = 1; j < 5; j++) {
-				qrFrame.setMask(col + j, row + 1, 2);
-				qrFrame.setMask(col + 1, row + j + 1, 2);
-				qrFrame.setMask(col + 5, row + j, 2);
-				qrFrame.setMask(col + j + 1, row + 5, 2);
-			}
-			for (j = 2; j < 4; j++) {
-				qrFrame.setMask(col + j, row + 2, 3);
-				qrFrame.setMask(col + 2, row + j + 1, 3);
-				qrFrame.setMask(col + 4, row + j, 3);
-				qrFrame.setMask(col + j + 1, row + 4, 3);
-			}
-		}
-	
-	// Alignment blocks
-	
-		if (version > 1) {
-			var dt = alignment_deltas[version];
-			var y = frameWidth - 7;
-			for (;;) {
-				var x = frameWidth - 7;
-				while (x > dt - 3) {
-					createAlignmentPattern(x, y, frameWidth);
-					// This seems unnecessary but is can happen in versions > 35
-					if (x < dt){
-						break;
-					}
-					x -= dt;
-				}
-				if (y <= dt + 9){
-					break;
-				}
-				y -= dt;
-				createAlignmentPattern(6, y, frameWidth);
-				createAlignmentPattern(y, 6, frameWidth);
-			}
-		}
-	
-	// single black, needs to be there
-		qrFrame.setMask(8, frameWidth - 8, 3);
-	// timing gap - whites
-		for (y = 0; y < 7; y++) {
-			qrFrame.setMask(7, y, 2);
-			qrFrame.setMask(frameWidth - 8, y, 2);
-			qrFrame.setMask(7, y + frameWidth - 7, 2);
-		}
-		for (x = 0; x < 8; x++) {
-			qrFrame.setMask(x, 7, 2);
-			qrFrame.setMask(x + frameWidth - 8, 7, 2);
-			qrFrame.setMask(x, frameWidth - 8, 2);
-		}
-	
-	// reserve mask-format area
-		for (x = 0; x < 9; x++){
-			qrFrame.setMask(x, 8, 2);
-		}
-		for (x = 0; x < 8; x++) {
-			qrFrame.setMask(x + frameWidth - 8, 8, 2);
-			qrFrame.setMask(8, x, 2);
-		}
-		for (y = 0; y < 7; y++){
-			qrFrame.setMask(8, y + frameWidth - 7, 2);
-		}
-
-// timing row/col
-		for (x = 0; x < frameWidth - 14; x++){
-			qrFrame[8 + x + frameWidth * 6] = 3 - (x & 1);
-		}
-		for (x = 0; x < frameWidth - 14; x++){
-			qrFrame[6 + frameWidth * (8 + x)] = 3 - (x & 1)
-		}
-		
-// version block
-		if (version > 6) {
-			var pattern = version_pattern[version - 7];
-			var k = 17;
-			var t;
-			for (x = 0; x < 6; x++){
-				for (y = 0; y < 3; y++, k--){
-					t = (1 & (k > 11 ? version >> (k - 12) : pattern >> k));
-					qrFrame[(5 - x) + frameWidth * (2 - y + frameWidth - 11)] = 2 + t
-					qrFrame[(2 - y + frameWidth - 11) + frameWidth * (5 - x)] = 2 + t
-				}
-			}
-		}
-		
-	// Function patterns in place - now add data
-		pushDataToFrame(qrFrame, data);
-	
-		return qrFrame
-	}
-	
-	function pushDataToFrame(qrFrame,data){
-		// position initialized to bottom right
-		var x_pos, y_pos, goingLeft, goingUp, max_idx;
-		goingUp = goingLeft = true;
-		x_pos = y_pos = max_idx = qrFrame.width - 1;
-		var limit = 0;
-		for (var i = 0; i < data.length; i++) {
-			for (var j = 7; j >= 0; j--) {
-				if ((data[i] >> j) & 1){
-					qrFrame.setBlack(x_pos,y_pos);
-				}
-        // Adjust x,y until next unmasked coordinate is found
-				do{
-					if (goingLeft){
-						x_pos--;
-					} else {
-						x_pos++;
-						if (y_pos != limit){
-							goingUp ? y_pos-- : y_pos++;
-						} else {
-							limit = goingUp ? max_idx : 0;
-							x_pos -= 2;
-							goingUp = !goingUp;
-							if (x_pos === 6){
-								x_pos--;
-								y_pos += goingUp ? -8 : 9;
-							}
-						}
-					}
-					goingLeft = !goingLeft;
-				} while (qrFrame.isMasked(x_pos, y_pos));
-			}
-		}
-	}
-	
-	// Calculate how bad the masked image is
-	// blocks, imbalance, long runs of one color, or finder similarity.
-	// Function patterns should maybe be excluded from badness test but since mask doesn't change them they give same score for each mask 
-	function testFrame(maskedFrame, width){
-
-		// Badness coefficients.
-		var N1 = 3, N2 = 3, N3 = 40, N4 = 10;
-		var runLengths = [];		
-		var x, y;
-		var score = 0;
-		var balance = 0;
-		var state;
-		// 2x2 blocks of same color.
-		for (y = 0; y < width - 1; y++){
-			for (x = 0; x < width - 1; x++){
-				state = maskedFrame.getPixel(x, y) + maskedFrame.getPixel(x + 1, y) + maskedFrame.getPixel(x, y + 1) + maskedFrame.getPixel(x + 1, y + 1);
-				if (!(state & 3)){
-					score += N2;
-				}
-			}
-		}
-		// X runs
-		var prev, current, idx;
-		for(y = 0; y < width; y++){
-			prev = maskedFrame.getPixel(0, y);
-			runLengths[0] = 1;
-			idx = 0;
-			for(x = 1; x < width; x++){
-				current = maskedFrame.getPixel(x, y);
-				if(current === prev){
-					runLengths[idx]++;
-				}else{
-					runLengths[++idx] = 1;
-					prev = current;
-				}
-				balance += current ? 1 : -1;
-			}
-			score += runLength(runLengths, N1, N3, idx + 1);
-		}
-		// black/white imbalance
-		if (balance < 0){
-			balance = -balance;
-		}
-		var square = width * width;
-		var count = 0;
-		balance += balance << 2;
-		balance <<= 1;
-		while (balance > square){
-			balance -= square;
-			count++;
-		}
-		score += count * N4;
-			// Y runs
-		runLengths = [];
-		for(x = 0; x < width; x++){
-			prev = maskedFrame.getPixel(x, 0);
-			runLengths[0] = 1;
-			idx = 0;
-			for(y = 1; y < width; y++){
-				current = maskedFrame.getPixel(x, y);
-				if(current === prev){
-					runLengths[idx]++;
-				}else{
-					runLengths[++idx] = 1;
-					prev = current;
-				}
-			}
-			score += runLength(runLengths, N1, N3, idx + 1);
-		}
-		return score;
-	}
-
-	function runLength(runs, N1, N3, length){
-		var i;
-		var score = 0;
-		for (i = 0; i < length; i++){
-			if (runs[i] >= 5){
-				score += N1 + runs[i] - 5;
-			 }
-		}
-		// Finder-like pattern
-		for (i = 2; i < length - 2; i++){
-			// Treats inverted color finder-like patterns as finders
-			if (runs[i] < 3 || runs[i] & 1 === 0){
-				break
-			}
-			if (runs[i - 2] === runs[i + 2]
-					&& runs[i + 2] === runs[i - 1]
-					&& runs[i - 1] === runs[i + 1]
-					&& runs[i - 1] * 3 === runs[i]
-					){
-						score += N3;
-			}
-		}
-		return score;
-	}
-	
-	function applyMask(qrFrame, maskNum, width, newMask){
-		// Don't generate new mask array when reversing
-		if(newMask){
-			//Make new mask
-			var offset = 0;
-			var r3x = 0;
-			var r3y = 0;
-			for (var y = 0; y < width; y++, r3y++){
-				offset = y * width;
-				r3y = r3y % 3;
-				for (var x = 0, r3x = 0; x < width; x++){
-          var bit = qrFrame.isMasked(x,y) ^ 1;
-					var mask_bit;
-          switch (maskNum) {
-						case 1:
-              mask_bit = (x + y) & 1;
-              break;
-						case 2:
-              mask_bit = y & 1;
-              break;
-						case 3:
-              mask_bit = x % 3;
-              break;
-						case 4: 
-              mask_bit = (x + y) % 3;
-              break;
-						case 5:
-              mask_bit = (((x / 3) | 0) + (y >> 1)) & 1;
-              break;
-						case 6:
-              mask_bit = (x & y & 1) + (r3x > 0 && r3y > 0 ? 1 : 0); 
-              r3x = (r3x + 1) % 3;
-							break;
-						case 7:
-              mask_bit = ((x & y & 1) + (r3x > 0 && r3x === r3y ? 1 : 0)) & 1;
-              r3x = (r3x + 1) % 3;
-							break;
-						case 8:
-              mask_bit = ((r3x > 0 && r3x === r3y ? 1 : 0) + ((x + y) & 1)) & 1;
-              r3x = (r3x + 1) % 3;
-							break;
-						default:
-							throw "mask number " + masknum + " is invalid"
-							break;
-
-					}
-          mask_bit = (mask_bit === 0 ? 1 : 0) & bit;
-          qrFrame[offset + x] ^= (mask_bit << 2) | mask_bit;
-				}
-			}
-		}else{
-      for(var i = 0; i < qrFrame.length; i++){
-        var mask_bit = qrFrame[i] & 4;
-        qrFrame[i] ^= (mask_bit | (mask_bit >> 2));
+  static #clampToRange(value, min, max, isInteger){
+    if( typeof value != "number" || value < 0 ){
+      return 0
+    }
+    if(value < min){
+      value = min;
+    }else{
+      if( value > max){
+        value = max;
       }
     }
-		return 0
-	}
-	
-	function addFormatInfo(qrFrame, maskNumber, width, ecc_level){
-		// Add format bits to the image
-		var formatWord = format_pattern[maskNumber - 1 + ((ecc_level - 1) << 3)];
-		var k;
-		for (k = 0; k < 8; k++, formatWord >>= 1){
-			qrFrame[width - 1 - k + 8 * width] = formatWord & 1;
-			qrFrame[8 + (k + (k > 5)) * width] = formatWord & 1;
-		}
-		// high byte
-		for (k = 0; k < 7; k++, formatWord >>= 1){
-			qrFrame[8 + (width - 7 + k) * width] = formatWord & 1;
-			qrFrame[6 - k + !(k) + 8 * width] = formatWord & 1;
-		}
-	}
-	
-	function strToArray(str){
-		var uString = encodeURI(str);
-		var result = [];
-		for (var i = 0; i < uString.length;i++){
-			if(uString[i] == "%"){
-				result.push(parseInt(uString.substr(i + 1,2),16));
-				i += 2;
-			}else{
-				result.push(uString.charCodeAt(i));
-			}
-		}
-		return result
-	}
-	
-	function drawCanvas(canvasElem, qrImage, width, scale, padding){
-		var graphics = canvasElem.getContext("2d");
-		var imageWidth = scale * (width + (2 * padding));
-		canvasElem.width = imageWidth;
-		canvasElem.height = imageWidth;
-		graphics.clearRect(0, 0, imageWidth, imageWidth);
-		graphics.fillStyle = "#fff";
-		graphics.fillRect(0,0,imageWidth,imageWidth);
-		graphics.fillStyle = "#000";
-		for( var i = 0; i < width; i++ ){
-			for( var j = 0; j < width; j++ ){
-				if( qrImage.getPixel(j,i) ){
-					graphics.fillRect(scale * (padding + j),scale * (padding + i),scale,scale);
-				}
-			}
-		}
-		return "CANVAS_OK"
-	}
-	
-	function makeSVG(qrImage, width, pad, img){
-		var symbolWidth = width + pad * 2;
-		var svg = '<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 ' + symbolWidth + ' ' + symbolWidth + '" stroke="none" preserveAspectRatio="xMidYMid meet">\n<defs>\n<clipPath id="dataClip">\n<circle cx="50%" cy="50%" r="' + (width * img.width / 2) + '"></circle>\n</clipPath>\n</defs>\n<rect width="100%" height="100%" fill="white"></rect>\n<path d="';
-		svg += getSVGPath(qrImage, width, pad, img);
-		svg += '" fill="black"></path>\n';
-		if(img.width){
-			var shapeStyle = img.shape === "circle" ? 'clip-path="url(#dataClip)"':"";
-			img.width *= width;
-			var pos = (symbolWidth - img.width) / 2;
-			svg += '<image x="' + pos + '" y="' + pos + '" width="' + img.width + '" height="' + img.width + '" xlink:href="' + img.path +'" ' + shapeStyle + '></image>\n';
-		}
-		svg += '</svg>\n';
-		return svg
-	}
-	
-	function getSVGPath(qrFrame,width,pad,img){
-		var radius = (img.width * width) / 2 || 0;
-		radius *= radius;
-		var shape = (radius === 0) ? null : nullOrValue(img.shape)
-		// Create a bit free room around icon
-		radius += ((img.offset - 6 ) * Math.abs(img.offset - 6));
-		var dy, dx;
-		dy = dx = (width >> 1);
-		var dy_sqr = dy * dy;
-		var svg = "";
-		var usable = true;
-		for (var y = pad; y < width + pad; y++){
-			for (var x = pad; x < width + pad; x++){
-				switch(shape){
-					case "circle":
-						usable = (dx * dx) + dy_sqr > radius;
-						dx--;
-						break;
-					case "square":
-						usable = radius < dy_sqr || radius < (dx * dx);
-						dx--;
-						break;
-					default:
-					//	usable = true;
-						break;
-				}
-				
-				if (usable && qrFrame.getPixel(x - pad, y - pad)){
-					svg += "M" + (x) + "," + (y) + " h1v1h-1z ";
-				}
-			}
-			if(shape != null){
-				dy--;
-				dy_sqr = dy * dy;
-				dx += width; 
-			}
-		}
-		return svg
-	}
-	
-	function nullOrValue(val){
-		return val === undefined ? null : val;
-	}
-	
-	function makeResultObject(isValid, why, mask, version, resultData, width, logoWidth){
-		return {
-			"isValid":nullOrValue(isValid),
-			"validInfo":nullOrValue(why),
-			"mask":nullOrValue(mask),
-			"version":nullOrValue(version),
-			"result":nullOrValue(resultData),
-			"width":nullOrValue(width),
-			"embedWidth":nullOrValue(logoWidth)
-			}
-	}
-	
-	function clampToRange(value, min, max, type){
-		if( typeof value != "number" || value < 0 ){
-			return 0
-		}
-		if(value < min){
-			value = min;
-		}else{
-			if( value > max){
-				value = max;
-			}
-		}
-		if( type === "i" ){
-			value |= 0;
-		}
-		return value;
-	}
-	
-	function isOutputValid(type){
-		var retval = true;
-		switch(type){
-			case "canvas":
-			case "svgFull":
-			case "svgPath":
-			case "rawArray":
-			case "unmasked":
-				break;
-			default:
-				retval = false;
-		}
-		return retval;
-	}
-	
-	this.make = function(str_input,info){
-	//	str_input - input string
-	//	info.maskNumber - mask number 1-9, 9 means automatic
-	//	info.eccLevel - error correction level 1-4
-	//	info.padding - empty space around symbol in module units
-	//	info.outputType -		svgPath		- return a string describing svg path
-	//											svgFull		- return a full svg file as string
-	//											canvas		- draws output to specified canvas
-	//											rawArray	- returns the symbol as Array
-	//											unmasked	- returns the Array without a mask
-	//  info.canvasProperties - { canvasElement: <HTMLCanvasElement>,
-	//														scale: Width of one module in pixels,
-	//														containerSize: Width of the containing element in pixels
-	//													}
-	//	Eventual width of the image is <containerSize> if the property exists
-	//  If not, then width of one module is <scale> (or default 6px when width is not defined) 
-	// 
-	//	info.image - { path: <dataURI>,
-	//	               scale: [0-1.0],
-	//	               shape: ["circle","square"],
-	//								 offset: [1-12], 6 = "center"
-	//	             }
-	//	Scale is relative to symbol size without padding
-	//	Shape, scale and offset are used to determine if the module in that coordinate is drawn or not
-		
-		// SETTINGS VALIDATION
-		// clampToRange returns 0 for invalid values in which case defaults are used
-		var selectedMask = clampToRange(info.maskNumber, 1, 9, "i") || 0x9;
-		var eccLevel = clampToRange(info.eccLevel, 1, 4, "i") || 0x3;
-		// clamping imagePadding to range 0-12 is kinda arbitrary
-		// but such a huge padding doesn't make sense in any scenario
-		// so in practice this just prevents errors.
-		var padding = clampToRange(info.padding, 0, 12, "f") || 3;
-		var logoInfo = info.image || {"width":0};
-		logoInfo.width = clampToRange(logoInfo.width, 0, 1, "f") || 0;
-		logoInfo.offset = clampToRange(logoInfo.offset, 1, 12, "i") || 0x7;
-		// Check that output type is supported
-		if (!isOutputValid(info.outputType)){
-			throw "outputType: " + info.outputType + " is not valid";
-		}
-		// Canvas output needs a canvas to draw to
-		if (info.outputType === "canvas"){
-			if (info.canvasProperties.canvasElement){
-				if(info.canvasProperties.canvasElement.tagName != "CANVAS"){
-					throw "Invalid output element: Expected 'CANVAS' but got '" + info.canvasProperties.canvasElement.tagName + "'";
-				}
-			}else{
-				throw "Outuput element is not defined"
-			}
-		}
-
-		var a_input = strToArray(str_input);
-		// No data, no code
-		if(!a_input || a_input.length == 0){
-			return makeResultObject(false,"No Data", null, null, null, 0, 0);
-		}
-		var format = findVersion(a_input.length,eccLevel);
-		var width = 17 + 4 * format.version;
-		var rawFrame = makeFrame(encodeData(a_input,format), width, format.version);
-		// Allocate equal size array for mask
-		if (selectedMask == 9 ){ // auto select mask
-			var goal = Infinity; // Any score is better than none
-			var score;
-			for (var i = 1; i < 9; i++){
-				// XOR raw frame against mask, can be reversed
-				applyMask(rawFrame, i, width, true);
-				addFormatInfo(rawFrame, i, width, eccLevel);
-				score = testFrame(rawFrame, width);
-				if (score < goal){
-					goal = score;
-					selectedMask = i;
-				}
-				// Reverse the masking
-				applyMask(rawFrame, i, width, false);
-			}
-		}
-		// Apply the explicitly selected or best mask
-		applyMask(rawFrame, selectedMask, width, true);
-		addFormatInfo(rawFrame, selectedMask, width, eccLevel);
-		var result;
-		switch (info.outputType){
-			case "canvas":
-				var scale;
-				// if containerSize is defined the symbol is fit to screen
-				// if not defined then we use scale (or 6 if scale isn't defined)
-				if ( clampToRange(info.canvasProperties.containerSize, width + 2 * padding, Infinity, "i") === 0){
-					scale = Math.max(1,info.canvasProperties.scale|0) || 6;
-				} else{
-					// scale < 1 doesn't make any sense
-					scale = Math.max(1,Math.floor(info.canvasProperties.containerSize / (width + 2 * padding)));
-				}
-				result = drawCanvas(info.canvasProperties.canvasElement,rawFrame,width,scale,padding);
-				break;
-			case "svgFull":
-				result = makeSVG(rawFrame,width,padding,logoInfo);
-				break;
-			case "svgPath":
-				result = getSVGPath(rawFrame,width,padding,logoInfo);
-				break;
-			case "rawArray":
-				result = rawFrame;
-				break;
-			case "unmasked":
-				// XOR undoes the selected mask
-				applyMask(rawFrame, selectedMask, width, false);
-				result = rawFrame;
-				break;
-			default:
-				throw "output type: " + info.outputType + " is not supported";
-				break;
-		}
-	return makeResultObject(true, "QRIER_OK", selectedMask, format.version, result, width + 2 * padding, logoInfo.width * width)
-	}
-
+    if( isInteger ){
+      value |= 0;
+    }
+    return value;
+  }
+  
+  static MODE_NUMERIC = Symbol("0001");
+  static MODE_ALPHANUMERIC = Symbol("0010");
+  static MODE_BYTE = Symbol("0100");
+  static MODE_KANJI = Symbol("1000");
+  
+  static OUTPUTMODE_CANVAS = Symbol("canvas");
+  static OUTPUTMODE_SVG = Symbol("svg");
+  static OUTPUTMODE_PATH = Symbol("path");
+  static OUTPUTMODE_ARRAY = Symbol("array");
+  static OUTPUTMODE_UNMASKED = Symbol("unmasked");
+  
+  static #isOutputVariant;
+  static{
+    this.#isOutputVariant = (some) => {
+      switch(some){
+        case this.OUTPUTMODE_CANVAS:
+        case this.OUTPUTMODE_SVG:
+        case this.OUTPUTMODE_PATH:
+        case this.OUTPUTMODE_ARRAY:
+        case this.OUTPUTMODE_UNMASKED:
+          return true
+      }
+      return false
+    }
+  }
+  
+  static QRier_Result = class{
+    constructor(isValid = null, why = null, mask = null, version = null, resultData = null, width = null, logoWidth = null){
+      this.isValid =    isValid;
+      this.validInfo =  why;
+      this.mask =       mask;
+      this.version =    version;
+      this.result =     resultData;
+      this.width =      width;
+      this.embedWidth = logoWidth;
+    }
+    static Empty(){
+      return new QRier_Gen.QRier_Result(false,"No Data", null, null, null, 0, 0);
+    }
+  }
 }
+
+export { QRier_Gen }
