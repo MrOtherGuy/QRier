@@ -1,5 +1,5 @@
-/**
- * Reed-Solomon error correction code library
+/*
+ *  Reed-Solomon error correction code library
  *
  *  Copyright (C) 2017 - 2022  MrOtherGuy
  *
@@ -17,8 +17,9 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>
  *
  * Contact: jastekken@outlook.com
- *	
+ *  
  */
+ 
 const POLYNOMIAL = 0x11d;
 const FIELD_SIZE = 256;
 
@@ -41,22 +42,22 @@ class QRier_ECCGen{
   
   makeECC(options){
     let n_ecw = options.ecWidth;
-		let dcw = options.data;
-		let n_dcw = options.dataWidth || dcw.length;
+    let dcw = options.data;
+    let n_dcw = options.dataWidth || dcw.length;
     
     if(!(dcw.length && typeof dcw != "string") || typeof n_dcw != "number"){
-			throw new Error("makeECC was called with invalid arguments - ecWidth: " + options.ecWidth + ", data: " + typeof(dcw) + "[" + dcw.length + "], dataWidth: " + n_dcw);
-		}
+      throw new Error(`makeECC was called with invalid arguments - ecWidth: ${options.ecWidth}, data: ${typeof dcw}[${dcw.length}], dataWidth: ${n_dcw}`);
+    }
     
     if(!n_ecw){
       return new Uint8Array(0);
     }
     // Factor array depends only on error codeword count
-		// use previous if the count didn't change
-		if(n_ecw != this.#previousFactorCount){
-			this.#factors = QRier_ECCGen.computeFactors(n_ecw,this.#fcr);
-			this.#previousFactorCount = n_ecw;
-		}
+    // use previous if the count didn't change
+    if(n_ecw != this.#previousFactorCount){
+      this.#factors = QRier_ECCGen.computeFactors(n_ecw,this.#fcr);
+      this.#previousFactorCount = n_ecw;
+    }
     
     const a_ecw = new Uint8Array(n_ecw);
     let o = 0;
@@ -65,16 +66,16 @@ class QRier_ECCGen{
     for(let i = 0; i < n_dcw; i++) {
       o = dcw[i] ^ a_ecw[end_idx];
       // This can happen when both are equal, which would result in multiplication by zero. In such case use short path instead
-			if(o === 0){
-				a_ecw.copyWithin(1,0,end_idx);
-				a_ecw[0] = 0;
-			}else{
-				for (let j = end_idx; j > 0; j--){
-					a_ecw[j] = a_ecw[j-1] ^ QRier_ECCGen.#multiply(o,this.#factors[j]);
-				}
-				// And once more for the first element
-				a_ecw[0] = QRier_ECCGen.#multiply(o,this.#factors[0])
-			}
+      if(o === 0){
+        a_ecw.copyWithin(1,0,end_idx);
+        a_ecw[0] = 0;
+      }else{
+        for (let j = end_idx; j > 0; j--){
+          a_ecw[j] = a_ecw[j-1] ^ QRier_ECCGen.#multiply(o,this.#factors[j]);
+        }
+        // And once more for the first element
+        a_ecw[0] = QRier_ECCGen.#multiply(o,this.#factors[0])
+      }
     }
     
     return a_ecw.reverse()
