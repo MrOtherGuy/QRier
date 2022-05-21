@@ -1,4 +1,6 @@
-'use strict'
+'use strict';
+import { QRier_Gen } from "../../core/qrGen.js";
+
 const page = {elements:{},codeGen:null,pointer:{},state:{},options:{}};
 let lazyTimeout;
 document.onreadystatechange = function () {
@@ -6,8 +8,6 @@ document.onreadystatechange = function () {
     init();
   }
 }
-
-// Page related functionality
 
 function makeBlob(elem){
 	if(page.state.lastObjectUrl != null){
@@ -104,7 +104,7 @@ function makeSymbol(query){
 		let requestInfo = {	"maskNumber":maskNumber,
 												"eccLevel":eccLevel,
 												"padding":padding,
-												"outputType":"svgPath",
+												"outputType":QRier_Gen.OUTPUTMODE_PATH,
 												"image":{"width":innerImageWidth, "shape":shape,
 												"offset": innerImageOffset}
 											};
