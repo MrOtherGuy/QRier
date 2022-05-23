@@ -1,107 +1,108 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
-	<meta charset="UTF-8"/>
-	<title>QRier web editor</title>
-	<meta http-equiv="Content-Script-Type" content="application/javascript"/>
-	<meta name="viewport" content="width=device-width,initial-scale=1"/>
-	<script type="module" src="docs/js/freePage.js"></script>
-	<link href="docs/css/freepage.css" rel="stylesheet" type="text/css"/>
+  <meta charset="UTF-8"/>
+  <title>QRier web editor</title>
+  <link rel="icon" href="icons/logo.svg" type="image/svg+xml">
+  <meta http-equiv="Content-Script-Type" content="application/javascript"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <script type="module" src="docs/js/freePage.js"></script>
+  <link href="docs/css/freepage.css" rel="stylesheet" type="text/css"/>
 </head>
 <body>
-	<div class="setting-header">
-		<input type="checkbox" id="showSettings"/>
-		<label for="showSettings" class="button mini">⚙️</label>
-		<div class="infobar dark">
-			<span>© 2018-2022 MrOtherGuy</span>
-			<a href="https://github.com/MrOtherGuy/QRier/">Source @ GitHub</a>
-		</div>
-		<div id="settings">
-			<div class="basicSettings setting">
-				<div class="setting">
-					<label>Mask:</label>
-					<select id="maskBox" class="inputbox">
-						<option value="1">Mask 1</option>
-						<option value="2">Mask 2</option>
-						<option value="3">Mask 3</option>
-						<option value="4">Mask 4</option>
-						<option value="5">Mask 5</option>
-						<option value="6">Mask 6</option>
-						<option value="7">Mask 7</option>
-						<option value="8">Mask 8</option>
-						<option value="9" selected>auto</option>
-					</select>
-				</div>
-				<div class="setting">
-					<label>ECC:</label>
-					<select id="eccBox" class="inputbox">
-						<option value="1">L - 7%</option>
-						<option value="2">M - 15%</option>
-						<option value="3" selected>Q - 25%</option>
-						<option value="4">H - 30%</option>
-					</select>
-				</div>
-			</div>
-			<input type="checkbox" id="logoEnabled"/>
-			<label for="logoEnabled" class="button mini">🎨</label>
-			<div class="setting" id="logoSelection">
-				<div id="imgPreview">
-					<img height="100%" width="100%" src="">
-				</div>
-				<input id="fileInput" type="file" accept=".png,.jpg,.bmp,.svg,.gif"/>
-				<label class="button" for="fileInput">Browse...</label>
-				<div id="embedPrefs">
-					<div class="setting">
-						<label>Scale:</label>
-						<input id="embedScale" type="number" value="0.4" step="0.05" min="0" max="1.0" class="inputbox">
-					</div>
-					<div class="setting">
-						<label>Offset:</label>
-						<input id="embedOffset" type="number" value="7" step="1" min="1" max="12" class="inputbox">
-					</div>
-					<div class="setting">
-						<label>Shape:</label>
-						<select id="embedShape" class="inputbox">
-							<option value="circle" selected>Circle</option>
-						<option value="square">Square</option>
-					</select>
-					</div>
-				</div>
-			</div>
-			<div class="infobar">
-				<button id="selfButton" class="button bar">Share this page...</button>
-			</div>
-		</div>
-	</div>
-	<div id="outputs">
-		<div id="svgContainer">
-			<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 0 0" stroke="none" preserveAspectRatio="xMidYMid meet">
-				<defs>
-					<clipPath id="dataClip">
-						<circle id="dataClipCircle" cx="50%" cy="50%" r="50%"></circle>
-					</clipPath>
-				</defs>
-				<rect width="100%" height="100%" fill="#ffffff"></rect>
-				<path id="svgPath" d="M0 0 L 1 1" fill="#000000"></path>
-				<image id="innerImage" x="0" y="0" width="0" height="0" xlink:href="" clip-path="url(#dataClip)"></image>
-			</svg>
-		</div>
-	</div>
-	<div id="inputs">
-		<div id="feedbackContainer">
-			<div class="feedback">
-				<div id="feedbackTitle"></div>
-				<div id="feedbackFormat"></div>
-			</div>
-			<a href="#" download="Symbol.svg" class="button" id="saveButton" disabled>
-			</a>
-		</div>
-		<div id="textField">
-			<div id="textDiv">
-				<textarea name="inputbox" id="input_text" maxlength="3000" rows="4" placeholder="Your text here - 3000 characters max" autofocus></textarea>
-			</div>
-			<button class="button" id="genButton">
-			</button>
-		</div>
-	</div>
+  <div class="setting-header">
+    <input type="checkbox" id="showSettings"/>
+    <label for="showSettings" class="button mini">⚙️</label>
+    <div class="infobar dark">
+      <span>© 2018-2022 MrOtherGuy</span>
+      <a href="https://github.com/MrOtherGuy/QRier/">Source @ GitHub</a>
+    </div>
+    <div id="settings">
+      <div class="basicSettings setting">
+        <div class="setting">
+          <label>Mask:</label>
+          <select id="maskBox" class="inputbox">
+            <option value="1">Mask 1</option>
+            <option value="2">Mask 2</option>
+            <option value="3">Mask 3</option>
+            <option value="4">Mask 4</option>
+            <option value="5">Mask 5</option>
+            <option value="6">Mask 6</option>
+            <option value="7">Mask 7</option>
+            <option value="8">Mask 8</option>
+            <option value="9" selected>auto</option>
+          </select>
+        </div>
+        <div class="setting">
+          <label>ECC:</label>
+          <select id="eccBox" class="inputbox">
+            <option value="1">L - 7%</option>
+            <option value="2">M - 15%</option>
+            <option value="3" selected>Q - 25%</option>
+            <option value="4">H - 30%</option>
+          </select>
+        </div>
+      </div>
+      <input type="checkbox" id="logoEnabled"/>
+      <label for="logoEnabled" class="button mini">🎨</label>
+      <div class="setting" id="logoSelection">
+        <div id="imgPreview">
+          <img height="100%" width="100%" src="">
+        </div>
+        <input id="fileInput" type="file" accept=".png,.jpg,.bmp,.svg,.gif"/>
+        <label class="button" for="fileInput">Browse...</label>
+        <div id="embedPrefs">
+          <div class="setting">
+            <label>Scale:</label>
+            <input id="embedScale" type="number" value="0.4" step="0.05" min="0" max="1.0" class="inputbox">
+          </div>
+          <div class="setting">
+            <label>Offset:</label>
+            <input id="embedOffset" type="number" value="7" step="1" min="1" max="12" class="inputbox">
+          </div>
+          <div class="setting">
+            <label>Shape:</label>
+            <select id="embedShape" class="inputbox">
+              <option value="circle" selected>Circle</option>
+            <option value="square">Square</option>
+          </select>
+          </div>
+        </div>
+      </div>
+      <div class="infobar">
+        <button id="selfButton" class="button bar">Share this page...</button>
+      </div>
+    </div>
+  </div>
+  <div id="outputs">
+    <div id="svgContainer">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 0 0" stroke="none" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <clipPath id="dataClip">
+            <circle id="dataClipCircle" cx="50%" cy="50%" r="50%"></circle>
+          </clipPath>
+        </defs>
+        <rect width="100%" height="100%" fill="#ffffff"></rect>
+        <path id="svgPath" d="M0 0 L 1 1" fill="#000000"></path>
+        <image id="innerImage" x="0" y="0" width="0" height="0" xlink:href="" clip-path="url(#dataClip)"></image>
+      </svg>
+    </div>
+  </div>
+  <div id="inputs">
+    <div id="feedbackContainer">
+      <div class="feedback">
+        <div id="feedbackTitle"></div>
+        <div id="feedbackFormat"></div>
+      </div>
+      <a href="#" download="Symbol.svg" class="button" id="saveButton" disabled>
+      </a>
+    </div>
+    <div id="textField">
+      <div id="textDiv">
+        <textarea name="inputbox" id="input_text" maxlength="3000" rows="4" placeholder="Your text here - 3000 characters max" autofocus></textarea>
+      </div>
+      <button class="button" id="genButton">
+      </button>
+    </div>
+  </div>
 </body></html>
