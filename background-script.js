@@ -36,7 +36,8 @@ browser.menus.onClicked.addListener((menus,tab) => {
         openMenuActionInContent(menus,tab);
         break;
       case "popup":
-        openMenuActionInPanel(menus);
+        openMenuActionInPanel(menus)
+        .then(()=>browser.action.setPopup({ popup: "../popup/QRier.html" }))
         break;
       default:
         console.warn("unimplemented menu action: "+type)
