@@ -3,6 +3,7 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <style>span{ padding-inline: 2em } button{ margin: 1em } </style>
   </head>
 
 <body>
@@ -35,9 +36,9 @@
 	</ul>
 	</div>
 	<h3>Options</h3>
-	<span id="feedback" style="color:red"></span>
+	<code><span id="feedback" style=""> </span></code>
   <form>
-      <label>Select Mask</label>
+      <span>Select Mask</span>
       <select id="maskSelect">
 				<option value="1">Mask 1</option>
 				<option value="2">Mask 2</option>
@@ -51,7 +52,7 @@
 			</select>
 		</form>
 	  <form>
-      <label>Select error correction level</label>
+      <span>Select error correction level</span>
       <select id="eccSelect">
 				<option value="1">L - 7%</option>
 				<option value="2">M - 15%</option>
@@ -60,7 +61,7 @@
 			</select>
 		</form>
 		<form>
-      <label>Select popup scale. No effect on Android</label>
+      <span>Select popup scale. (No effect on Android)</span>
       <select id="scaleSelect">
 				<option value="4">4x4</option>
 				<option value="6">6x6</option>
@@ -70,15 +71,18 @@
 			</select>
 		</form>
 	<form>
-		<label> Select where context menu is shown</label>
-		<input type="checkbox" id="onUrl">Current page</input>
+		<span> Select where context menu is shown</span>
+		<input type="checkbox" id="onUrl"></input>
+    <label for="onUrl">Current page</label>
 		<input type="checkbox" id="onLink">Links</input>
-		<input type="checkbox" id="onSelect">Selected text</input>
+    <label for="onLink">Links</label>
+		<input type="checkbox" id="onSelect"></input>
+    <label for="onSelect">Selected text</label>
 	</form>
 	<form id="outputType">
-		<label> Select output type</label>
-		<input type="radio" id="content" name="output" value="content"> Content</input>
-		<input type="radio" id="popup" name="output" value="popup"> Popup</input>
+		<span> Select output type</span>
+		<input type="radio" id="content-radio" name="output" value="content"></input><label for="content-radio">Content</label>
+		<input type="radio" id="popup-radio" name="output" value="popup"></input><label for="popup-radio">Popup</label>
 	</form>
    <button id="saveButton" type="submit">Save</button>
 	 <script src="options.js"></script>
