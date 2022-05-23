@@ -32,7 +32,7 @@ function createSelfSymbol(){
 	if (path.charAt(path.length - 1) != "/"){
 		addr += "/";
 	}
-	makeSymbol({data: addr + "?"});
+	makeSymbol({data: addr});
 }
 
 function feedback(input, state, mask, version){
