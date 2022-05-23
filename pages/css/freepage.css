@@ -139,14 +139,14 @@ input[type="checkbox"]:checked + .button{
 }
 
 .button[disabled]{ display:none }
-#genButton,#selfButton::after{ background-image: url(/icons/button-icon.svg) }
+#genButton,#selfButton::after{ background-image: url("../../icons/button-icon.svg") }
 #selfButton::after{
 	content: "";
 	width: 1em;
 	height: 1em;
 	margin-left: 6px
 }
-#saveButton{ background-image: url(/icons/download.svg) }
+#saveButton{ background-image: url("../../icons/download.svg") }
 
 #svgContainer{
 	height: var(--svg-width);
