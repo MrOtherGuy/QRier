@@ -1,13 +1,13 @@
-'use strict'
-	var page = {elements:{},codeGen:null,pointer:{},state:{},options:{}};
-	var lazyTimeout;
+'use strict';
+import { QRier_Gen } from "../../core/qrGen.js";
+
+let page = {elements:{},codeGen:null,pointer:{},state:{},options:{}};
+let lazyTimeout;
 document.onreadystatechange = function () {
   if (document.readyState === "complete") {
     init();
   }
 }
-
-// Page related functionality
 
 function makeBlob(elem){
 	if(page.state.lastObjectUrl != null){
@@ -27,8 +27,8 @@ function makeDownloadLink(e){
 }
 
 function createSelfSymbol(){
-	var path = document.location.pathname;
-	var addr = document.location.origin + path;
+	let path = document.location.pathname;
+	let addr = document.location.origin + path;
 	if (path.charAt(path.length - 1) != "/"){
 		addr += "/";
 	}
@@ -36,7 +36,7 @@ function createSelfSymbol(){
 }
 
 function feedback(input, state, mask, version){
-	var isGood = ["OK: ","Error: ", ""];
+	let isGood = ["OK: ","Error: ", ""];
 	page.elements.feedbackTitle.textContent = isGood[state] + input;
 	if(!state){
 		page.elements.feedbackFormat.textContent = "QR-version: " + version + " - Mask: " + mask;
@@ -52,9 +52,9 @@ function toggleImage(){
 }
 
 function imageChange(){
-	var imgElement = document.getElementById("imgPreview").children[0];
-	var file = document.getElementById("fileInput").files[0];
-	var reader = new FileReader();
+	let imgElement = document.getElementById("imgPreview").children[0];
+	let file = document.getElementById("fileInput").files[0];
+	let reader = new FileReader();
 	reader.addEventListener("load", function () {
 		page.state.dataURI = reader.result;
     page.state.hasDataURI = true;
@@ -70,7 +70,7 @@ function imageChange(){
 }
 
 function setEmbeddedImageProperties(symbolWidth, imageWidth, shape){
-	var innerImage = page.elements.innerImage;
+	let innerImage = page.elements.innerImage;
 	if (page.state.hasDataURI){
 		innerImage.setAttribute("x",(symbolWidth - imageWidth) / 2);
 		innerImage.setAttribute("y",(symbolWidth - imageWidth) / 2);
@@ -90,34 +90,34 @@ function setEmbeddedImageProperties(symbolWidth, imageWidth, shape){
 }
 
 function makeSymbol(query){
-	var elems = page.elements;
-	var str_input;
-	var padding = 3; // 3 svg units
+	let elems = page.elements;
+	let str_input;
+	let padding = 3; // 3 svg units
 	if (!(query instanceof Event) && typeof query === "object"){
 		str_input = query.data;
 	}else{
 		query = {ecc:null, mask:null};
 		str_input = elems.textField.value;
 	}
-	var eccLevel = parseInt(query.ecc) || parseInt(page.options.ECC);
-	var maskNumber = parseInt(query.mask) || parseInt(page.options.mask);
-	var embedImageScale = parseFloat(page.options.embedScale);
-	var innerImageOffset = parseInt(page.options.embedOffset);
-	var innerImageWidth = page.state.hasDataURI ? embedImageScale : 0;
-	var shape = innerImageWidth ? page.options.embedShape : null;
-	var dataURI = page.state.hasDataURI ? page.state.dataURI : "";
+	let eccLevel = parseInt(query.ecc) || parseInt(page.options.ECC);
+	let maskNumber = parseInt(query.mask) || parseInt(page.options.mask);
+	let embedImageScale = parseFloat(page.options.embedScale);
+	let innerImageOffset = parseInt(page.options.embedOffset);
+	let innerImageWidth = page.state.hasDataURI ? embedImageScale : 0;
+	let shape = innerImageWidth ? page.options.embedShape : null;
+	let dataURI = page.state.hasDataURI ? page.state.dataURI : "";
 	if (!dataURI){
 		innerImageWidth = 0;
 	}
 	try{
-		var requestInfo = {	"maskNumber":maskNumber,
+		let requestInfo = {	"maskNumber":maskNumber,
 												"eccLevel":eccLevel,
 												"padding":padding,
-												"outputType":"svgPath",
+												"outputType":QRier_Gen.OUTPUTMODE_PATH,
 												"image":{"width":innerImageWidth, "shape":shape, "offset": innerImageOffset}
 											};
-		var result = page.codeGen.make(str_input, requestInfo);
-		var feedbackText;
+		let result = page.codeGen.make(str_input, requestInfo);
+		let feedbackText;
 		if( !result.isValid ){
 			elems.svgPath.setAttribute("d", "");
 			feedbackText = result.validInfo;
@@ -159,7 +159,7 @@ function lazyMakeSymbol(){
 */
 function onPointerDown(e){
 	e.preventDefault();
-	var elems = page.elements;
+	let elems = page.elements;
 	if (e.type == "touchstart"){
 		if( e.changedTouches.length > 1){
 			return false
@@ -188,7 +188,7 @@ function onPointerUp(e){
 
 function onPointerMove(e){
 	e.stopPropagation();
-	var x;
+	let x;
 	if (e.type == "touchmove"){
 		x = e.changedTouches[0].clientX;
 	}else{
@@ -212,13 +212,13 @@ function setContainerWidth(size,elem){
 }
 
 function getContainerWidth(elem){
-	var prop = page.state.userNeedsaBetterBrowser ? "width" : "--svg-width";
+	let prop = page.state.userNeedsaBetterBrowser ? "width" : "--svg-width";
 	return parseFloat(elem.style.getPropertyValue(prop));
 }
 
 function selectPointer(action){
-	var str = "on";
-	var actions = page.state.isTouchDevice ? ["start","end","move","cancel"]:["down","up","move","leave"];
+	let str = "on";
+	let actions = page.state.isTouchDevice ? ["start","end","move","cancel"]:["down","up","move","leave"];
 	str += page.state.isTouchDevice ? "touch" : "mouse";
 	switch (action){
 		case "down":
@@ -241,15 +241,15 @@ function selectPointer(action){
 }
 
 function queryParams(query){
-  var str = query.substring(1);
-	var isEmpty = str.length < 1;
-  var tokens = str.split("&");
-  var entries = {};
+  let str = query.substring(1);
+	let isEmpty = str.length < 1;
+  let tokens = str.split("&");
+  let entries = {};
 	try{
-		for(var i = 0;i < tokens.length;i++){
-			var pair = tokens[i].split("=");
+		for(let i = 0;i < tokens.length;i++){
+			let pair = tokens[i].split("=");
 			if (pair.length > 1){
-				var prefName = pair[0];
+				let prefName = pair[0];
 				entries[prefName] = decodeURIComponent(tokens[i].substr(prefName.length + 1));
 			}
 		}
@@ -300,7 +300,7 @@ function initPageObject(){
 }
 
 function changeSetting(e){
-	var propertyName = null;
+	let propertyName = null;
 	switch(e.target.id){
 		case "eccBox":
 			propertyName = "ECC"
@@ -326,7 +326,7 @@ function changeSetting(e){
 }
 
 function showOptionsIfFits(){
-	var optionStyle = window.getComputedStyle(document.getElementById("settings"));
+	let optionStyle = window.getComputedStyle(document.getElementById("settings"));
 	if(parseInt(optionStyle.height) + parseInt(optionStyle.top) < window.innerHeight/9){
 		document.getElementById("showSettings").checked = true;
 	}
@@ -345,10 +345,10 @@ function init(){
 	}
 	
 	// Autorun generator If the user made a request containing query parameters
-	var query = new queryParams(location.search);
-	var queryData = query.get("data");
+	let query = new queryParams(location.search);
+	let queryData = query.get("data");
 	if (!query.isEmpty()) {
-		var parameters;
+		let parameters;
 		
 		if(queryData){
 			parameters = {
@@ -381,8 +381,8 @@ function init(){
 	// Text input
 	page.elements.textField.addEventListener("input", lazyMakeSymbol, false);
 	// Preference change
-	var prefIDs = ["eccBox","maskBox","embedScale","embedShape","embedOffset"];
-	for(var i = 0; i < prefIDs.length; i++){
+	let prefIDs = ["eccBox","maskBox","embedScale","embedShape","embedOffset"];
+	for(let i = 0; i < prefIDs.length; i++){
 		document.getElementById(prefIDs[i]).addEventListener("change",changeSetting,false);
 	}
 	// Image enabled checkbox
