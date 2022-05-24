@@ -29,3 +29,8 @@ p,
 	opacity: 0.8;
 }
 #feedbackFormat{ display:none; }
+.imageContainer{
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+}
