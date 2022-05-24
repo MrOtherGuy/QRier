@@ -20,7 +20,8 @@
       "page": "options/options.html",
       "browser_style": true
   },
-  "permissions": ["activeTab","menus","storage","scripting"],
+  "permissions": ["activeTab","menus","storage"],
+  "optional_permissions": ["scripting"],
 	"omnibox":{
 		"keyword": "qrier"
 	},

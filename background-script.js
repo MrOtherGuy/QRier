@@ -59,15 +59,29 @@ browser.storage.local.get("inContent")
   }
 });
 
+// Optional permission management
+browser.permissions.onRemoved.addListener(permissions => {
+  if(permissions.permissions.includes("scripting")){
+    console.log("scripting permission was removed");
+    browser.storage.local.set({ inContent: "popup" });
+    browser.action.setPopup({ popup: "../popup/QRier.html" })
+  }
+});
+
+
 async function setDefaultOptions() {
   let res = await browser.storage.local.get(['mask','ecc','scale','showLink','showUrl','showSelection','inContent']);
+  let hasScripting = await browser.permissions.contains({
+    permissions: ["scripting"]
+  });
   let mask = res.mask || 9;
   let ecc = res.ecc || 3;
   let scale = res.scale || 6;
   let showLink = res.showLink || false;
   let showUrl = res.showUrl || false;
   let showSelection = res.showSelection || false;
-  let showInContent = res.inContent || "popup";
+  let showInContent = !hasScripting ? "popup" : res.inContent || "popup";
+  
   let values = {
     mask: mask,
     ecc: ecc,
@@ -101,6 +115,7 @@ function setDefaultMenus( settings ){
 		title: "QRier Editor",
 		contexts: ["action"]
 	});
+  // create other menus if needed
   const suffix = "In-" + menus.inContent;
 	if(menus.showLink){
 		browser.menus.create({
@@ -197,14 +212,18 @@ function handleMessage(request, sender, sendResponse) {
   if(sender.id != browser.runtime.id){
     return Promise.resolve({response: null})
   }
-  if(request?.outputMode.inContent === "content"){
+
+  if(!request.menuChange){
+    return Promise.reject({response: null})
+  }
+  const { newMenus, oldMenus } = request.menuChange;
+  if(newMenus.inContent){
     browser.action.setPopup({popup: null})
-    return Promise.resolve({response:"success"});
-  }
-  if(request?.outputMode.inContent === "popup"){
+  }else{
     browser.action.setPopup({ popup: "../popup/QRier.html" })
-    return Promise.resolve({response:"success"})
   }
+  updateMenus(newMenus,oldMenus);
+  return Promise.resolve({response:"success"})
 
 }
 
@@ -213,4 +232,54 @@ function fixedEncodeURIComponent(str) {
   return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
     return '%' + c.charCodeAt(0).toString(16);
   });
+}
+
+function updateMenus(newMenus,oldMenus){
+  const addSuffix = newMenus.inContent ? "In-content" : "In-popup";
+  const removeSuffix = newMenus.inContent ? "In-popup" : "In-content";
+  
+  const inContentStateChanged = newMenus.inContent != oldMenus.inContent;
+  
+  if(inContentStateChanged){
+    browser.menus.remove("openMenuLink"+removeSuffix);
+    browser.menus.remove("openMenuUrl"+removeSuffix);
+    browser.menus.remove("openMenuSelection"+removeSuffix);
+  }
+  
+  if(inContentStateChanged || (oldMenus.onLink != newMenus.onLink)){
+    if(!newMenus.onLink){
+      browser.menus.remove("openMenuLink"+removeSuffix)
+    }else{
+      browser.menus.create({
+        id: "openMenuLink"+addSuffix,
+        title: "QRier link",
+        contexts: ["link"]
+     });
+    }
+  }
+  
+  if(inContentStateChanged || (oldMenus.onUrl != newMenus.onUrl)){
+
+    if(!newMenus.onUrl){
+      browser.menus.remove("openMenuUrl"+removeSuffix)
+    }else{
+      browser.menus.create({
+        id: "openMenuUrl"+addSuffix,
+        title: "QRier url",
+        contexts: ["page"]
+      });
+    }
+  }
+  if(inContentStateChanged || (oldMenus.onSelection != newMenus.onSelection)){
+
+    if(!newMenus.onSelection){
+      browser.menus.remove("openMenuSelection"+removeSuffix)
+    }else{
+      browser.menus.create({
+        id: "openMenuSelection"+addSuffix,
+        title: "QRier selection",
+        contexts: ["selection"]
+      });
+    }
+  }
 }

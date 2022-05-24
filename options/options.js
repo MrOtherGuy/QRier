@@ -1,7 +1,33 @@
 'use strict';
-function saveOptions(e) {
-  let newOutput = document.getElementById("outputType").elements["output"].value === "popup" ? "popup" : "content";
+
+let hasScripting = false;
+const menuStates = {
+  "onLink": false,
+  "onUrl": false,
+  "onSelection": false,
+  "inContent": false
+};
+
+async function saveOptions(e) {
+  e.preventDefault();
+  const outputform = document.getElementById("outputType");
+  let newOutput = outputform.elements.output.value === "popup" ? "popup" : "content";
   
+  if(newOutput === "content" && !hasScripting){
+    try{
+      hasScripting = await browser.permissions.request({
+        permissions: ["scripting"]
+      });
+    }catch(e){
+      console.error("scripting permissions request failed")
+    }
+    if(!hasScripting){
+      console.log("scripting permissions was not granted");
+      outputform.elements.output.value = "popup";
+      newOutput = "popup";
+    }
+  }
+
   let newMenus = {
     "inContent": newOutput === "content",
     "onLink": document.querySelector("#onLink").checked,
@@ -18,16 +44,19 @@ function saveOptions(e) {
     showSelection: newMenus.onSelection,
     inContent: newOutput
   });
-  e.preventDefault();
-  updateMenus(newMenus);
-  notifyBackground({inContent:newOutput});
-}
-
-function notifyBackground(output){
+  //updateMenus(newMenus);
+  // Tell background-script to update menus
   browser.runtime.sendMessage({
-    outputMode: output
+    menuChange: { newMenus: newMenus, oldMenus: menuStates }
   })
-  .then(handleResponse,handleError);
+  .then(handleResponse)
+  .then(() => {
+    menuStates.inContent = newMenus.inContent;
+    menuStates.onLink = newMenus.onLink;
+    menuStates.onUrl = newMenus.onUrl;
+    menuStates.onSelection = newMenus.onSelection;
+  })
+  .catch(handleError)
 }
 
 function handleResponse(message) {
@@ -40,92 +69,25 @@ function handleError(error) {
   feedback(true,"");
 }
 
-function onCreated() {
-  if (browser.runtime.lastError) {
-    console.log(`Error: ${browser.runtime.lastError}`);
-  } else {
-    console.log("menuitem created successfully");
-  }
-}
-
-function onRemoved() {
-  console.log("menuitem removed successfully");
-}
-
-function onError() {
-  console.log("error removing item:" + browser.runtime.lastError);
-}
-
 function feedback(err,str){
   var elem = document.getElementById("feedback");
   var color = err ? "pink":"lightgreen";
   var fdb = err ? "Error while saving options, see browser console " + str : "OK";
   elem.textContent = fdb;
   elem.style.backgroundColor = color;
-  setTimeout(()=>{ elem.textContent = " "; elem.style.backgroundColor = "transparent"},2000)
+  !err && setTimeout(()=>{ elem.textContent = " "; elem.style.backgroundColor = "transparent"},2000)
   return 0
 }
 
-function updateMenus(newMenus){
-  
-  const addSuffix = newMenus.inContent ? "In-content" : "In-popup";
-  const removeSuffix = newMenus.inContent ? "In-popup" : "In-content";
-  
-  const inContentStateChanged = newMenus.inContent != menuStates.inContent;
-  
-  if(inContentStateChanged){
-    browser.menus.remove("openMenuLink"+removeSuffix);
-    browser.menus.remove("openMenuUrl"+removeSuffix);
-    browser.menus.remove("openMenuSelection"+removeSuffix);
-    menuStates.inContent != menuStates.inContent;
-  }
-  
-  if(inContentStateChanged || (menuStates.onLink != newMenus.onLink)){
-    if(!newMenus.onLink){
-      browser.menus.remove("openMenuLink"+removeSuffix)
-      .then(onRemoved,onError);
-    }else{
-      browser.menus.create({
-        id: "openMenuLink"+addSuffix,
-        title: "QRier link",
-        contexts: ["link"]
-        }, onCreated);
-    }
-    menuStates.onLink = newMenus.onLink;
-  }
-  
-  if(inContentStateChanged || (menuStates.onUrl != newMenus.onUrl)){
-
-    if(!newMenus.onUrl){
-      browser.menus.remove("openMenuUrl"+removeSuffix)
-      .then(onRemoved,onError);
-    }else{
-      browser.menus.create({
-        id: "openMenuUrl"+addSuffix,
-        title: "QRier url",
-        contexts: ["page"]
-        }, onCreated);
-    }
-    menuStates.onUrl = newMenus.onUrl;
-  }
-  if(inContentStateChanged || (menuStates.onSelection != newMenus.onSelection)){
-
-    if(!newMenus.onSelection){
-      browser.menus.remove("openMenuSelection"+removeSuffix)
-      .then(onRemoved,onError);
-    }else{
-      browser.menus.create({
-        id: "openMenuSelection"+addSuffix,
-        title: "QRier selection",
-        contexts: ["selection"]
-        }, onCreated);
-    }
-    menuStates.onSelection = newMenus.onSelection;
-  }
-}
-
 function restoreOptions() {
-
+  
+  browser.permissions.contains({
+    permissions: ["scripting"]
+  })
+  .then(permissions => {
+    hasScripting = permissions
+  });
+  
   browser.storage.local.get(['mask','ecc','scale','showLink','showUrl','showSelection','inContent'])
   .then((res) => {
     document.querySelector("#maskSelect").value = res.mask.toString();
@@ -141,12 +103,6 @@ function restoreOptions() {
     menuStates.inContent = res.inContent === "content";
   });
 }
-const menuStates = {
-  "onLink": false,
-  "onUrl": false,
-  "onSelection": false,
-  "inContent": false
-};
 
 document.addEventListener('DOMContentLoaded', restoreOptions);
 document.getElementById("saveButton").addEventListener("click", saveOptions,false);
