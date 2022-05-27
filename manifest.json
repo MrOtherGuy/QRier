@@ -30,8 +30,8 @@
 		"scripts": ["background-script.js"]
 	},
 	"applications": {
-  "gecko": {
-    "id": "QRier@example.com"
+    "gecko": {
+      "id": "QRier@example.com"
+    }
   }
-}
 }

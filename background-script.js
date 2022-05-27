@@ -1,7 +1,7 @@
 // Install listener
 browser.runtime.onInstalled.addListener(function() {
   setDefaultOptions()
-  .then(setDefaultMenus)
+  //.then(setDefaultMenus)
   .catch(e => { console.error(e) })
 });
 
@@ -43,71 +43,77 @@ browser.menus.onClicked.addListener((menus,tab) => {
         console.warn("unimplemented menu action: "+type)
     }
   }
-})
+});
 // Set listener for browserAction button
 browser.action.onClicked.addListener((tab) => {
   openBrowserActionInContent(tab)
-});
-// This effectively disables browserAction listener when needed.
-// We could check  inContent == "popup", but there might be a 
-// chance that key isn't set to anything on new install, and
-// "popup" is the default setting
-browser.storage.local.get("inContent")
-.then(some => {
-  if(some.inContent != "content"){
-    browser.action.setPopup({ popup: "../popup/QRier.html" })
-  }
 });
 
 // Optional permission management
 browser.permissions.onRemoved.addListener(permissions => {
   if(permissions.permissions.includes("scripting")){
     console.log("scripting permission was removed");
-    browser.storage.local.set({ inContent: "popup" });
+    browser.storage.local.set({ inContent: false });
     browser.action.setPopup({ popup: "../popup/QRier.html" })
   }
 });
 
-
-async function setDefaultOptions() {
-  let res = await browser.storage.local.get(['mask','ecc','scale','showLink','showUrl','showSelection','inContent']);
-  let hasScripting = await browser.permissions.contains({
-    permissions: ["scripting"]
-  });
-  let mask = res.mask || 9;
-  let ecc = res.ecc || 3;
-  let scale = res.scale || 6;
-  let showLink = res.showLink || false;
-  let showUrl = res.showUrl || false;
-  let showSelection = res.showSelection || false;
-  let showInContent = !hasScripting ? "popup" : res.inContent || "popup";
-  
-  let values = {
-    mask: mask,
-    ecc: ecc,
-    scale: scale,
-    showLink: showLink,
-    showUrl: showUrl,
-    showSelection: showSelection,
-    inContent: showInContent
-  };
-  await browser.storage.local.set(values);
-  if(showInContent === "popup"){
-    browser.action.setPopup({ popup: "../popup/QRier.html" })
+class Options{
+  constructor(settings,permission){
+    this.settings = settings;
+    this.hasScripting = permission;
   }
-  return { ok: true, values: values }
+  static fromStorageWithDefaults(){
+    return new Promise(res => {
+      let settings = browser.storage.local.get({
+        'mask': 9,
+        'ecc' : 3,
+        'scale': 6,
+        'showLink': false,
+        'showUrl': false,
+        'showSelection': false,
+        'inContent': false
+      });
+      let permissions = browser.permissions.contains({
+        permissions: ["scripting"]
+      });
+      Promise.all([settings,permissions])
+      .then(values => {
+        res(new Options(values[0],values[1]));
+      });
+    });
+  }
 }
 
-function setDefaultMenus( settings ){
+async function setDefaultOptions() {
+
+  const options = await Options.fromStorageWithDefaults();
+  
+  // Old versions stored either "popup" or "content", this updates that
+  if(options.settings.inContent !== true){
+    options.settings.inContent = false
+  }
+  
+  if(!options.hasScripting){
+    options.settings.inContent = false
+  }
+  
+  await browser.storage.local.set(options.settings);
+  if(options.settings.showInContent === "popup"){
+    browser.action.setPopup({ popup: "../popup/QRier.html" })
+  }
+  return options
+
+}
+
+
+function setDefaultMenus( options ){
 	
 	if(!browser.menus){
 		return
 	}
-  if(!settings.ok){
-    console.error("default settings failed somehow");
-    console.log(settings);
-  }
-  const menus = settings.values;
+
+  const settings = options.settings;
   
 	// Create a context menu entry for browserAction to open editor
 	browser.menus.create({
@@ -116,22 +122,22 @@ function setDefaultMenus( settings ){
 		contexts: ["action"]
 	});
   // create other menus if needed
-  const suffix = "In-" + menus.inContent;
-	if(menus.showLink){
+  const suffix = "In-" + (settings.inContent ? "content" : "popup");
+	if(settings.showLink){
 		browser.menus.create({
 			id: "openMenuLink"+suffix,
 			title: "QRier link",
 			contexts: ["link"]
 		});
 	}
-	if(menus.showSelection){
+	if(settings.showSelection){
 		browser.menus.create({
 			id: "openMenuSelection"+suffix,
 			title: "QRier selection",
 			contexts: ["selection"]
 		});
 	}
-	if(menus.showUrl){
+	if(settings.showUrl){
 		browser.menus.create({
 			id: "openMenuUrl"+suffix,
 			title: "QRier url",
@@ -139,6 +145,25 @@ function setDefaultMenus( settings ){
 		});
 	}
 }
+
+function setBrowserAction(options){
+  // This effectively disables browserAction listener when needed.
+  if(!(options.settings.inContent === true)){
+    browser.action.setPopup({ popup: "../popup/QRier.html" })
+  }
+  return options
+}
+
+// run once in body
+// bug 1771328
+Options.fromStorageWithDefaults()
+.then(setBrowserAction)
+.then(setDefaultMenus)
+// And also wake up event page once on startup
+browser.runtime.onStartup.addListener(()=>{
+  console.log("starting...");
+});  
+
 
 function openBrowserActionInPanel(tab){
   browser.action.setPopup({popup:"../popup/QRier.html?"+tab.url});

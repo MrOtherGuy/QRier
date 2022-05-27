@@ -11,9 +11,9 @@ const menuStates = {
 async function saveOptions(e) {
   e.preventDefault();
   const outputform = document.getElementById("outputType");
-  let newOutput = outputform.elements.output.value === "popup" ? "popup" : "content";
+  let newOutputInContent = outputform.elements.output.value === "popup" ? false : true;
   
-  if(newOutput === "content" && !hasScripting){
+  if(newOutputInContent && !hasScripting){
     try{
       hasScripting = await browser.permissions.request({
         permissions: ["scripting"]
@@ -24,27 +24,27 @@ async function saveOptions(e) {
     if(!hasScripting){
       console.log("scripting permissions was not granted");
       outputform.elements.output.value = "popup";
-      newOutput = "popup";
+      newOutputInContent = false;
     }
   }
 
   let newMenus = {
-    "inContent": newOutput === "content",
+    "inContent": newOutputInContent,
     "onLink": document.querySelector("#onLink").checked,
     "onUrl": document.querySelector("#onUrl").checked,
     "onSelection": document.querySelector("#onSelect").checked
   };
   
   browser.storage.local.set({
-    mask: parseInt(document.querySelector("#maskSelect").value),
-    ecc: parseInt(document.querySelector("#eccSelect").value),
-    scale: parseInt(document.querySelector("#scaleSelect").value),
+    mask: Number.parseInt(document.querySelector("#maskSelect").value),
+    ecc: Number.parseInt(document.querySelector("#eccSelect").value),
+    scale: Number.parseInt(document.querySelector("#scaleSelect").value),
     showLink: newMenus.onLink,
     showUrl: newMenus.onUrl,
     showSelection: newMenus.onSelection,
-    inContent: newOutput
+    inContent: newOutputInContent
   });
-  //updateMenus(newMenus);
+
   // Tell background-script to update menus
   browser.runtime.sendMessage({
     menuChange: { newMenus: newMenus, oldMenus: menuStates }
@@ -90,17 +90,18 @@ function restoreOptions() {
   
   browser.storage.local.get(['mask','ecc','scale','showLink','showUrl','showSelection','inContent'])
   .then((res) => {
-    document.querySelector("#maskSelect").value = res.mask.toString();
-    document.querySelector("#eccSelect").value = res.ecc.toString();
-    document.querySelector("#scaleSelect").value = res.scale.toString();
+    document.querySelector("#maskSelect").value = res.mask;
+    document.querySelector("#eccSelect").value = res.ecc;
+    document.querySelector("#scaleSelect").value = res.scale;
     document.querySelector("#onLink").checked = res.showLink;
     menuStates.onLink = res.showLink;
     document.querySelector("#onUrl").checked = res.showUrl;
     menuStates.onUrl = res.showUrl;
     document.querySelector("#onSelect").checked = res.showSelection;
     menuStates.onSelection = res.showSelection;
-    document.getElementById(res.inContent+"-radio").checked = true;
-    menuStates.inContent = res.inContent === "content";
+    let item = res.inContent ? "content" : "popup";
+    document.getElementById(item+"-radio").checked = true;
+    menuStates.inContent = res.inContent;
   });
 }
 
