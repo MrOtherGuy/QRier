@@ -5,6 +5,12 @@ browser.runtime.onInstalled.addListener(function() {
   .catch(e => { console.error(e) })
 });
 
+// run once on startup
+browser.runtime.onStartup.addListener(async () => {
+  let options = await browser.storage.local.get(['showLink','showUrl','showSelection','inContent']);
+  await setDefaultMenus({ ok: true, values: options })
+})
+
 browser.omnibox.onInputEntered.addListener((input) => {
   
   // Use tab url when no input
@@ -125,6 +131,13 @@ function setDefaultMenus( settings ){
 	}
 }
 
+function injectScripts(id){
+  return browser.scripting.executeScript({
+    files: ["incontent/inContentScript.js"],
+    target: {tabId: id}
+  })
+}
+
 function openBrowserActionInPanel(tab){
   browser.action.setPopup({popup:"../popup/QRier.html?"+tab.url});
   return browser.action.openPopup()
@@ -136,19 +149,14 @@ function openBrowserActionInContent(tab){
     .then(()=>browser.action.setPopup({popup:null}));
     return
   }
-  browser.scripting.executeScript({
-    files: ["inContentScript.js"],
-    target: {tabId: tab.id}
-  })
-  .then((e) => {
-    setTimeout(()=>{
-      browser.tabs.sendMessage(
-        tab.id,
-        { menudata: tab.url }
-      )
-    },60) // time for connection to be made to content script
-  })
+  currentAction.value = tab.url;
+  injectScripts(tab.id)
   .catch(console.error)
+}
+
+const currentAction = {
+  value: null,
+  get: () => currentAction.value
 }
 
 function openMenuActionInPanel(menus){
@@ -163,18 +171,9 @@ function openMenuActionInContent(menus, tab){
     .then(()=>browser.action.setPopup({popup:null}));
     return
   }
-  browser.scripting.executeScript({
-    files: ["inContentScript.js"],
-    target: {tabId: tab.id}
-  })
-  .then((e) => {
-    setTimeout(()=>{
-      browser.tabs.sendMessage(
-        tab.id,
-        { menudata: getStringFromTriggerAction(menus) }
-      )
-    },60) // time for connection to be made to content script
-  })
+  currentAction.value = getStringFromTriggerAction(menus);
+  injectScripts(tab.id)
+
   .catch(console.error);
 }
 
@@ -197,15 +196,21 @@ function handleMessage(request, sender, sendResponse) {
   if(sender.id != browser.runtime.id){
     return Promise.resolve({response: null})
   }
-  if(request?.outputMode.inContent === "content"){
+  if(request.outputMode?.inContent === "content"){
     browser.action.setPopup({popup: null})
     return Promise.resolve({response:"success"});
   }
-  if(request?.outputMode.inContent === "popup"){
-    browser.action.setPopup({ popup: "../popup/QRier.html" })
-    return Promise.resolve({response:"success"})
+  if(request.outputMode?.inContent === "popup"){
+    browser.action.setPopup({ popup: "../popup/QRier.html" });
+    return Promise.resolve({response:"success"});
   }
-
+  if(request.closeFrame){
+    browser.tabs.sendMessage(sender.tab.id,request);
+    return Promise.resolve({response:"success"});
+  }
+  if(request.requestInfo){
+    return Promise.resolve({action:currentAction.get()})
+  }
 }
 
 // Extends encodeURIComponent() to include !'()*

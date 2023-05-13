@@ -163,15 +163,27 @@ function onPointerDown(e){
     }
   }
   page.pointer.curVal = parseInt(elems.svgContainer.style.getPropertyValue("--svg-width"));
-  elems.outputContainer[selectPointer("up")] = onPointerUp;
-  elems.outputContainer[selectPointer("leave")] = onPointerUp;
-  elems.outputContainer[selectPointer("move")] = onPointerMove;
+  const container = elems.outputContainer;
+  
+  if(page.state.isTouchDevice){
+    container.addEventListener(selectPointer("up",true),onPointerUp);
+    container.addEventListener(selectPointer("leave",true),onPointerUp);
+    container.addEventListener(selectPointer("move",true),onPointerMove);
+  }
+  container.addEventListener(selectPointer("up",false),onPointerUp);
+  container.addEventListener(selectPointer("leave",false),onPointerUp);
+  container.addEventListener(selectPointer("move",false),onPointerMove);
   return false
 }
 
 function onPointerUp(e){
-  e.stopPropagation();  
-  page.elements.outputContainer[selectPointer("move")] = null;
+  e.stopPropagation();
+  if(page.state.isTouchDevice){
+    page.elements.outputContainer
+    .removeEventListener(selectPointer("move",true),onPointerMove);
+  }
+  page.elements.outputContainer
+  .removeEventListener(selectPointer("move",false),onPointerMove);
   return false
 }
 
@@ -190,10 +202,12 @@ function hasTouch(){
   return !!('ontouchstart' in window);
 }
 // Map touch events to mouse events
-function selectPointer(action){
-  let str = "on";
-  let actions = page.state.isTouchDevice ? ["start", "end", "move", "cancel"]:["down", "up", "move", "leave"];
-  str += page.state.isTouchDevice ? "touch" : "mouse";
+function selectPointer(action,touchCapable){
+  //let str = "on";
+  let actions = touchCapable
+      ? ["start", "end", "move", "cancel"]
+      : ["down", "up", "move", "leave"];
+  let str = touchCapable ? "touch" : "mouse";
   switch (action){
     case "down":
       str += actions[0];
@@ -350,17 +364,25 @@ function init(){
     document.getElementById(el).addEventListener("change",changeSetting,false);
   }
   // Image enabled checkbox
-   document.getElementById("logoEnabled").addEventListener("change", toggleImage, false);
+   document.getElementById("logoEnabled")
+   .addEventListener("change", toggleImage, false);
   // File input
-  document.getElementById("fileInput").addEventListener("change", imageChange, false);
+  document.getElementById("fileInput")
+  .addEventListener("change", imageChange, false);
   // Generate button
-  document.getElementById("genButton").addEventListener("click", makeSymbol, false);
+  document.getElementById("genButton")
+  .addEventListener("click", makeSymbol, false);
   // Self Button
-  document.getElementById("selfButton").addEventListener("click", createSelfSymbol, false);
+  document.getElementById("selfButton")
+  .addEventListener("click", createSelfSymbol, false);
   // Save button
-  document.getElementById("saveButton").addEventListener("click", makeDownloadLink, false);
+  document.getElementById("saveButton")
+  .addEventListener("click", makeDownloadLink, false);
   // Change image size
-  page.elements.outputContainer[selectPointer("down")] = onPointerDown;
+  const touchCapable = hasTouch();
+  page.elements.outputContainer
+  .addEventListener(selectPointer("down",touchCapable),onPointerDown);
+  
   console.log("generator initialized");
   showOptionsIfFits();
 }

@@ -28,9 +28,15 @@
 	"background": {
 		"scripts": ["background-script.js"]
 	},
-	"applications": {
-  "gecko": {
-    "id": "QRier@example.com"
+  "web_accessible_resources": [
+    {
+      "resources": ["incontent/inContent.html"],
+      "matches": ["*://*/*"]
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "QRier@example.com"
+    }
   }
-}
 }

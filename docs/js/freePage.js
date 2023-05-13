@@ -158,43 +158,55 @@ function lazyMakeSymbol(){
 *  Touch action are mapped to mouse actions
 */
 function onPointerDown(e){
-	e.preventDefault();
-	let elems = page.elements;
-	if (e.type == "touchstart"){
-		if( e.changedTouches.length > 1){
-			return false
-		}else{
-		page.pointer.orgX =  e.changedTouches[0].clientX;
-		}
-	}else{
-		if(e.button == 0){
-			page.pointer.orgX = e.clientX;
-		}else{
-			return false
-		}
-	}
-	page.pointer.curVal = getContainerWidth(page.elements.svgContainer);
-	elems.outputContainer[selectPointer("up")] = onPointerUp;
-	elems.outputContainer[selectPointer("leave")] = onPointerUp;
-	elems.outputContainer[selectPointer("move")] = onPointerMove;
-	return false
+  e.preventDefault();
+  let elems = page.elements;
+  if (e.type == "touchstart"){
+    if( e.changedTouches.length > 1){
+      return false
+    }else{
+    page.pointer.orgX = e.changedTouches[0].clientX;
+    }
+  }else{
+    if(e.button == 0){
+      page.pointer.orgX = e.clientX;
+    }else{
+      return false
+    }
+  }
+  page.pointer.curVal = parseInt(elems.svgContainer.style.getPropertyValue("--svg-width"));
+  const container = elems.outputContainer;
+  
+  if(page.state.isTouchDevice){
+    container.addEventListener(selectPointer("up",true),onPointerUp);
+    container.addEventListener(selectPointer("leave",true),onPointerUp);
+    container.addEventListener(selectPointer("move",true),onPointerMove);
+  }
+  container.addEventListener(selectPointer("up",false),onPointerUp);
+  container.addEventListener(selectPointer("leave",false),onPointerUp);
+  container.addEventListener(selectPointer("move",false),onPointerMove);
+  return false
 }
 
 function onPointerUp(e){
-	e.stopPropagation();	
-	page.elements.outputContainer[selectPointer("move")] = null;
-	return false
+  e.stopPropagation();
+  if(page.state.isTouchDevice){
+    page.elements.outputContainer
+    .removeEventListener(selectPointer("move",true),onPointerMove);
+  }
+  page.elements.outputContainer
+  .removeEventListener(selectPointer("move",false),onPointerMove);
+  return false
 }
 
 function onPointerMove(e){
-	e.stopPropagation();
-	let x;
-	if (e.type == "touchmove"){
-		x = e.changedTouches[0].clientX;
-	}else{
-		x = e.clientX;
-	}
-	setContainerWidth(page.pointer.curVal + (x - page.pointer.orgX) / 2, page.elements.svgContainer);
+  e.stopPropagation();
+  let x;
+  if (e.type == "touchmove"){
+    x = e.changedTouches[0].clientX;
+  }else{
+    x = e.clientX;
+  }
+  page.elements.svgContainer.style.setProperty("--svg-width", Math.min(Math.max(page.pointer.curVal + (x - page.pointer.orgX) / 2, 0), 100) + "%");
 }
 
 function hasTouch(){
@@ -216,28 +228,31 @@ function getContainerWidth(elem){
 	return parseFloat(elem.style.getPropertyValue(prop));
 }
 
-function selectPointer(action){
-	let str = "on";
-	let actions = page.state.isTouchDevice ? ["start","end","move","cancel"]:["down","up","move","leave"];
-	str += page.state.isTouchDevice ? "touch" : "mouse";
-	switch (action){
-		case "down":
-			str += actions[0];
-			break;
-		case "up":
-			str += actions[1];
-			break;
-		case "move":
-			str += actions[2];
-			break;
-		case "leave":
-			str += actions[3];
-			break;
-		default:
-			throw "unimplemented pointer action"
-		
-	}
-	return str
+// Map touch events to mouse events
+function selectPointer(action,touchCapable){
+  //let str = "on";
+  let actions = touchCapable
+      ? ["start", "end", "move", "cancel"]
+      : ["down", "up", "move", "leave"];
+  let str = touchCapable ? "touch" : "mouse";
+  switch (action){
+    case "down":
+      str += actions[0];
+      break;
+    case "up":
+      str += actions[1];
+      break;
+    case "move":
+      str += actions[2];
+      break;
+    case "leave":
+      str += actions[3];
+      break;
+    default:
+      throw "unimplemented pointer action"
+    
+  }
+  return str
 }
 
 function queryParams(query){
@@ -396,7 +411,11 @@ function init(){
 	// Save button
 	document.getElementById("saveButton").addEventListener("click", makeDownloadLink, false);
 	// Change image size
-	page.elements.outputContainer[selectPointer("down")] = onPointerDown;
+	
+  const touchCapable = hasTouch();
+  page.elements.outputContainer
+  .addEventListener(selectPointer("down",touchCapable),onPointerDown);
+  
 	console.log("generator initialized");
 	showOptionsIfFits();
 }

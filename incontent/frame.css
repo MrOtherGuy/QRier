@@ -1,0 +1,17 @@
+img{
+  pointer-events: auto;
+}
+dialog::backdrop{
+  backdrop-filter: blur(12px);
+  background-color: rgba(0,0,0,0.3);
+}
+@media (orientation: portrait){
+  img{
+    max-width: 80vw;
+  } 
+}
+@media (orientation: landscape){
+  img{
+    max-height: 80vh;
+  } 
+}
