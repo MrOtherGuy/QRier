@@ -77,7 +77,7 @@ function updateMenus(newMenus){
     browser.menus.remove("openMenuLink"+removeSuffix);
     browser.menus.remove("openMenuUrl"+removeSuffix);
     browser.menus.remove("openMenuSelection"+removeSuffix);
-    menuStates.inContent != menuStates.inContent;
+    menuStates.inContent =  !menuStates.inContent;
   }
   
   if(inContentStateChanged || (menuStates.onLink != newMenus.onLink)){
