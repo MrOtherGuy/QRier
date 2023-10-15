@@ -18,12 +18,11 @@ browser.omnibox.onInputEntered.addListener((input) => {
   // If no input is given we should default to current url
   let freePageURI = browser.runtime.getURL("pages/QRierFreepage.html");
   
-  browser.storage.local.get(['mask','ecc'])
+  browser.storage.local.get('ecc')
   .then((options) => {
-    let mask = options.mask;
     let ecc = [null,"L","M","Q","H"][options.ecc];
     browser.tabs.update({
-      url: `${freePageURI}?data=${fixedEncodeURIComponent(input)}&mask=${mask}&ecc=${ecc}`
+      url: `${freePageURI}?data=${fixedEncodeURIComponent(input)}&mask=9&ecc=${ecc}`
     });
   });
 });
@@ -66,22 +65,22 @@ browser.storage.local.get("inContent")
 });
 
 async function setDefaultOptions() {
-  let res = await browser.storage.local.get(['mask','ecc','scale','showLink','showUrl','showSelection','inContent']);
-  let mask = res.mask || 9;
+  let res = await browser.storage.local.get(['ecc','scale','showLink','showUrl','showSelection','inContent','autoCleanUrls']);
   let ecc = res.ecc || 3;
   let scale = res.scale || 6;
   let showLink = res.showLink || false;
   let showUrl = res.showUrl || false;
   let showSelection = res.showSelection || false;
   let showInContent = res.inContent || "popup";
+  let autoCleanUrls = res.autoCleanUrls || false;
   let values = {
-    mask: mask,
     ecc: ecc,
     scale: scale,
     showLink: showLink,
     showUrl: showUrl,
     showSelection: showSelection,
-    inContent: showInContent
+    inContent: showInContent,
+    autoCleanUrls: autoCleanUrls
   };
   await browser.storage.local.set(values);
   if(showInContent === "popup"){
@@ -138,12 +137,13 @@ function injectScripts(id){
   })
 }
 
+// This seems overly complicated, but we need the panel script to be able to distinguish if it was opened via script or by clicking the panel
 function openBrowserActionInPanel(tab){
   browser.action.setPopup({popup:"../popup/QRier.html?"+tab.url});
   return browser.action.openPopup()
 }
 
-function openBrowserActionInContent(tab){
+async function openBrowserActionInContent(tab){
   if(!/^http/.test(tab.url)){
     openBrowserActionInPanel(tab)
     .then(()=>browser.action.setPopup({popup:null}));
@@ -154,9 +154,20 @@ function openBrowserActionInContent(tab){
   .catch(console.error)
 }
 
+async function maybeTrimUrl(action){
+  let opt = await browser.storage.local.get("autoCleanUrls");
+  return opt.autoCleanUrls
+    ? {action: action.value.slice(0,action.value.indexOf("?"))}
+    : {action: action.value}
+}
+
 const currentAction = {
   value: null,
-  get: () => currentAction.value
+  get: () => {
+    return currentAction.value.startsWith("http")
+      ? maybeTrimUrl(currentAction)
+      : Promise.resolve({action:currentAction.value})
+  }
 }
 
 function openMenuActionInPanel(menus){
@@ -196,20 +207,12 @@ function handleMessage(request, sender, sendResponse) {
   if(sender.id != browser.runtime.id){
     return Promise.resolve({response: null})
   }
-  if(request.outputMode?.inContent === "content"){
-    browser.action.setPopup({popup: null})
-    return Promise.resolve({response:"success"});
-  }
-  if(request.outputMode?.inContent === "popup"){
-    browser.action.setPopup({ popup: "../popup/QRier.html" });
-    return Promise.resolve({response:"success"});
-  }
   if(request.closeFrame){
     browser.tabs.sendMessage(sender.tab.id,request);
     return Promise.resolve({response:"success"});
   }
   if(request.requestInfo){
-    return Promise.resolve({action:currentAction.get()})
+    return currentAction.get()
   }
 }
 

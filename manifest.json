@@ -2,7 +2,6 @@
   "action": {
     "default_icon": "icons/logo.svg",
     "default_title": "QRier",
-    "browser_style": true,
     "theme_icons": [{
       "light": "icons/logo-light.svg",
       "dark": "icons/logo.svg",
@@ -17,8 +16,7 @@
   "manifest_version": 3,
   "name": "QRier",
   "options_ui": {
-      "page": "options/options.html",
-      "browser_style": true
+    "page": "options/options.html"
   },
   "permissions": ["activeTab","menus","storage","scripting"],
 	"omnibox":{
@@ -36,6 +34,9 @@
   ],
   "browser_specific_settings": {
     "gecko": {
+      "id": "QRier@example.com"
+    },
+    "gecko_android": {
       "id": "QRier@example.com"
     }
   }

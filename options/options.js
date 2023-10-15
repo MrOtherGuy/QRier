@@ -10,34 +10,26 @@ function saveOptions(e) {
   };
   
   browser.storage.local.set({
-    mask: parseInt(document.querySelector("#maskSelect").value),
     ecc: parseInt(document.querySelector("#eccSelect").value),
     scale: parseInt(document.querySelector("#scaleSelect").value),
     showLink: newMenus.onLink,
     showUrl: newMenus.onUrl,
     showSelection: newMenus.onSelection,
-    inContent: newOutput
+    inContent: newOutput,
+    autoCleanUrls: document.getElementById("autoCleanUrls-checkbox").checked
   });
   e.preventDefault();
   updateMenus(newMenus);
-  notifyBackground({inContent:newOutput});
-}
-
-function notifyBackground(output){
-  browser.runtime.sendMessage({
-    outputMode: output
-  })
-  .then(handleResponse,handleError);
-}
-
-function handleResponse(message) {
-  console.log(`Resolution:  ${message.response}`);
+  updateOutputMode({inContent:newOutput});
   feedback(false,"Changes saved");
 }
 
-function handleError(error) {
-  console.log(`Error: ${error}`);
-  feedback(true,"");
+function updateOutputMode(output){
+  if(output.inContent === "popup"){
+    browser.action.setPopup({ popup: "../popup/QRier.html" });
+  }else{
+    browser.action.setPopup({popup: null})
+  }
 }
 
 function onCreated() {
@@ -58,11 +50,16 @@ function onError() {
 
 function feedback(err,str){
   var elem = document.getElementById("feedback");
-  var color = err ? "pink":"lightgreen";
+  if(err){
+    elem.classList.remove("success-status");
+    elem.classList.add("error-status");
+  }else{
+    elem.classList.remove("error-status");
+    elem.classList.add("success-status");
+  }
   var fdb = err ? "Error while saving options, see browser console " + str : "OK";
   elem.textContent = fdb;
-  elem.style.backgroundColor = color;
-  setTimeout(()=>{ elem.textContent = " "; elem.style.backgroundColor = "transparent"},2000)
+  setTimeout(()=>{ elem.textContent = " ";elem.classList.remove("success-status","error-status")},2000)
   return 0
 }
 
@@ -126,9 +123,8 @@ function updateMenus(newMenus){
 
 function restoreOptions() {
 
-  browser.storage.local.get(['mask','ecc','scale','showLink','showUrl','showSelection','inContent'])
+  browser.storage.local.get(['ecc','scale','showLink','showUrl','showSelection','inContent','autoCleanUrls'])
   .then((res) => {
-    document.querySelector("#maskSelect").value = res.mask.toString();
     document.querySelector("#eccSelect").value = res.ecc.toString();
     document.querySelector("#scaleSelect").value = res.scale.toString();
     document.querySelector("#onLink").checked = res.showLink;
@@ -139,14 +135,25 @@ function restoreOptions() {
     menuStates.onSelection = res.showSelection;
     document.getElementById(res.inContent+"-radio").checked = true;
     menuStates.inContent = res.inContent === "content";
+    document.getElementById("autoCleanUrls-checkbox").checked = res.autoCleanUrls;
+    menuStates.autoCleanUrls = res.autoCleanUrls;
   });
 }
 const menuStates = {
   "onLink": false,
   "onUrl": false,
   "onSelection": false,
-  "inContent": false
+  "inContent": false,
+  "autoCleanUrls": false
 };
 
-document.addEventListener('DOMContentLoaded', restoreOptions);
-document.getElementById("saveButton").addEventListener("click", saveOptions,false);
+function init(){
+  restoreOptions();
+  document.getElementById("saveButton").addEventListener("click", saveOptions);
+}
+
+document.onreadystatechange = function () {
+  if (document.readyState === "complete") {
+    init();
+  }
+}

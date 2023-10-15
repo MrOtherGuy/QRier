@@ -2,56 +2,83 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <style>span{ padding-inline: 2em } button{ margin: 1em } </style>
+    <style>
+    @media (prefers-color-scheme: dark){
+      :root{
+        background: #404043;
+        color: #d2d2d2;
+      }
+      body{
+        color: #adadae;
+      }
+      h2,h3{
+        color: #d2d2d4;
+      }
+      .error-status,.success-status{ color: white }
+    }
+    :root{
+      font-family: sans-serif
+    }
+    h2{
+      margin-top: 0;
+    }
+    form{
+      padding-block: 0.3em;
+      outline: 1px solid;
+      margin-block: 0.4em;
+      border-radius: 4px;
+    }
+    #autoCleanUrls-checkbox{
+      margin-inline-start: 2em;
+    }
+    span{ padding-inline: 2em }
+    button{ margin: 1em; padding: 0.3em 0.7em }
+    .error-status{
+      background-color: "pink";
+    }
+    .error-status::before{
+      content: "⚠️";
+      padding-inline-end; 0.5em;
+    }
+    .success-status::before{
+      content: "✔️";
+      padding-inline-end: 0.5em;
+    }
+    .success-status{
+      background-color: #6396ec;
+    }
+    </style>
+  <script type="text/javascript" src="options.js"></script>
   </head>
-
 <body>
   <div id="description">
-  <h3>Share with QRier</h3>
+  <h2>Share with QRier</h2>
   <p>Ever wanted to share links with random people? Or perhaps for a large audience all at once? QRier helps you do just that.</p>
   <p>Clicking the toolbar button generates a QR code containing the address of the current page. Optional context menu items can be used to generate a symbol from link addresses, selected text or current page address.</p>
-  <p><b>NOTICE: This includes all the characters so please use with caution if the address contains login info.</b> No information is sent anywhere, everything runs locally.</p>
+  <p><b>NOTICE: By default this includes all the characters so please use with caution if the address contains login info etc. This can be changed in options.</b> No information is sent anywhere, everything runs locally.</p>
   <p>Bundled QRier editor can be used to generate symbols from arbitrary text as well as select settings and scale the symbol. Editor outputs to SVG which can also be saved on local machine.</p>
   <p>There is two ways to access the editor. One is to click the "QRier editor" button in the popup. The other one is from within address bar by typing "qrier" followed with a space and then your query.
   </p>
   <h3>Technical details</h3>
   <p>QR codes include some error correction information. The ECC-level is configurable, higher level makes the symbol more resistant to reading errors or symbol destruction. But it makes the symbol bigger for same input (and thus lowers the maximum input length).</p>
-  <p>Symbols are masked with one of the eight pre-defined masks. These help make the symbol easier to read. For example, the symbol shouldn't have additional parts that look like the big squares in corners. By default QRiers tries all of them and selects the best. For really large symbols the automatic selection can be somewhat slow on mobile devices so you can override the mask here.</p>
-  <h3>New in 1.5.9</h3>
+  <h3>New in 2.0</h3>
   <ul>
-  <li>Editor page can now embed images to QR codes</li>
+  <li>Use manifest v3 to achieve Android compatibility</li>
+  <li>Add option to automatically remove url query parameters</li>
+  <li>Mask option is removed from general settings. Use the editor page if you need to manually set used mask.</li>
   <li>Updated generator core</li>
   </ul>
   <h3>Known issues</h3>
   <ul>
-  <li>Popup doesn't scale properly if the button is in overflow menu</li>
-  <li>Really large codes don't fit the popup</li>
-  <p>Popup API limits the width of the popup, currently no way around it.</p>
   <li>Context menus don't work on Android.</li>
   <li>Keyword access to editor doesn't work on Android.</li>
   <p>Currently the extension API on Android doesn't support these features</p>
-  <p>You can't have the QR-code over web content on Android. There is a bug in Android Firefox which prevents changing the option.
-  </p>
+  <p>You can't have the QR-code over web content on Android. There is a bug in Android Firefox which prevents changing the option.</p>
   </ul>
   </div>
   <h3>Options</h3>
-  <code><span id="feedback" style=""> </span></code>
-  <form>
-      <span>Select Mask</span>
-      <select id="maskSelect">
-        <option value="1">Mask 1</option>
-        <option value="2">Mask 2</option>
-        <option value="3">Mask 3</option>
-        <option value="4">Mask 4</option>
-        <option value="5">Mask 5</option>
-        <option value="6">Mask 6</option>
-        <option value="7">Mask 7</option>
-        <option value="8">Mask 8</option>
-        <option value="9">Auto</option>
-      </select>
-    </form>
     <form>
-      <span>Select error correction level</span>
+      <span>Error correction level:</span>
       <select id="eccSelect">
         <option value="1">L - 7%</option>
         <option value="2">M - 15%</option>
@@ -60,7 +87,7 @@
       </select>
     </form>
     <form>
-      <span>Select popup scale. (No effect on Android)</span>
+      <span>Popup image scale: (No effect on Android)</span>
       <select id="scaleSelect">
         <option value="4">4x4</option>
         <option value="6">6x6</option>
@@ -70,7 +97,7 @@
       </select>
     </form>
   <form>
-    <span> Select where context menu is shown</span>
+    <span>Where context menu is shown:</span>
     <input type="checkbox" id="onUrl"></input>
     <label for="onUrl">Current page</label>
     <input type="checkbox" id="onLink"></input>
@@ -79,11 +106,13 @@
     <label for="onSelect">Selected text</label>
   </form>
   <form id="outputType">
-    <span> Select output type</span>
+    <span>Output type:</span>
     <input type="radio" id="content-radio" name="output" value="content"></input><label for="content-radio">Content</label>
     <input type="radio" id="popup-radio" name="output" value="popup"></input><label for="popup-radio">Popup</label>
   </form>
-   <button id="saveButton" type="submit">Save</button>
-   <script src="options.js"></script>
+  <form>
+    <input type="checkbox" id="autoCleanUrls-checkbox"></input><label for="autoCleanUrls-checkbox">Remove query parameters from URL</label>
+  </form>
+  <button id="saveButton" type="submit">Save</button><code><span id="feedback"> </span></code>
 </body>
 </html>

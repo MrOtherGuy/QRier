@@ -11,6 +11,9 @@ p,
 	}
 #freePageLink{ 
 	position: relative;
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
 	bottom: 0px;
 	left: 0px;
 	background: rgb(46,54,69);
@@ -19,10 +22,7 @@ p,
 	text-align: center;
 }
 #freePageLink img{
-	position: absolute;
-	height: 1.4em;
-	width: 1.4em;
-	margin-left: -2em;
+  margin-right: 0.2em;
 }
 #freePageLink:hover,
 #freePageLink:active{
