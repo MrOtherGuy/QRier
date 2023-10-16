@@ -14,7 +14,6 @@ function feedback(input,result,state){
 function makeSymbol(query){
   var qr = new QRier_Gen();
   var eccLevel = options.ECC;
-  var mask = options.mask;
   var scale = options.scale;
   var inputText = query;
   
@@ -22,7 +21,7 @@ function makeSymbol(query){
   // Page scales to screen width on Android so let's scale the image to that
   var containerWidth = os === "android" ? Math.min(window.innerHeight, window.innerWidth):null;
   var requestInfo = {
-    "maskNumber":mask,
+    "maskNumber":9,
     "eccLevel":eccLevel,
     "padding":3,
     "outputType":QRier_Gen.OUTPUTMODE_CANVAS,
@@ -47,23 +46,23 @@ function makeSymbol(query){
 }
 function setCurrent(tabs){
   currentTab = tabs[0];
-  }
+}
 
-  function setOS(info){
-    os = info.os;
-  }
+function setOS(info){
+  os = info.os;
+}
   
-  function setOptions(opt){
-    if(opt.mask != undefined){
-      options.mask = opt.mask;
-    }
-    if(opt.ecc != undefined){
-      options.ECC = opt.ecc;
-    }
-    if(opt.scale != undefined){
-      options.scale = opt.scale;
-    }
+function setOptions(opt){
+  if(opt.ecc != undefined){
+    options.ECC = opt.ecc;
   }
+  if(opt.scale != undefined){
+    options.scale = opt.scale;
+  }
+  if(opt.autoCleanUrls != undefined){
+    options.autoCleanUrls = !!opt.autoCleanUrls
+  }
+}
   
 function parseLocation(src){
   var start = src.indexOf("?");
@@ -78,14 +77,18 @@ function fixedEncodeURIComponent(str) {
 }
   
 function openFreePage() {
-  browser.tabs.create({url:"../pages/QRierFreepage.html"+"?data="+fixedEncodeURIComponent(currentText) + "&ecc=" + [null,"L","M","Q","H"][options.ECC] + "&mask=" + options.mask});
+  browser.tabs.create({url:"../pages/QRierFreepage.html"+"?data="+fixedEncodeURIComponent(currentText) + "&ecc=" + [null,"L","M","Q","H"][options.ECC]});
   window.close();
 }
-var currentTab,os,currentText;
-var options = {"mask":9,"ECC":3,"scale":6};
+let currentTab,os,currentText;
+let options = {
+  ECC: 3,
+  scale:6,
+  autoCleanUrls: false
+};
 
 function setup(){
-  var gettingOptions = browser.storage.local.get(['mask','ecc','scale']);
+  var gettingOptions = browser.storage.local.get(['ecc','scale','autoCleanUrls']);
   var gettingTab = browser.tabs.query({active: true, currentWindow: true});
   var gettingOS = browser.runtime.getPlatformInfo();
 
@@ -93,7 +96,13 @@ Promise.all([gettingOptions,gettingTab,gettingOS]).then(setup =>{
   setOptions(setup[0]);
   setCurrent(setup[1]);
   setOS(setup[2]);
+  
   currentText = decodeURIComponent(parseLocation(location.href)) || currentTab.url;
+  
+  if(options.autoCleanUrls && currentText.startsWith("http")){
+    currentText = currentText.slice(0,currentText.indexOf("?"))
+  }
+  
   makeSymbol(currentText);
   });
   return false

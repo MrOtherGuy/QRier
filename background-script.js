@@ -1,9 +1,19 @@
 // Install listener
-browser.runtime.onInstalled.addListener(function() {
+browser.runtime.onInstalled.addListener(() => {
   setDefaultOptions()
-  //.then(setDefaultMenus)
+  .then(setBrowserAction)
+  .then(setDefaultMenus)
   .catch(e => { console.error(e) })
 });
+
+browser.runtime.onStartup.addListener(() => {
+  Options.fromStorageWithDefaults()
+  .then(setBrowserAction)
+  .then(setDefaultMenus)
+  .catch(e => { console.error(e) })
+})
+
+
 
 browser.omnibox.onInputEntered.addListener((input) => {
   
@@ -12,12 +22,11 @@ browser.omnibox.onInputEntered.addListener((input) => {
   // If no input is given we should default to current url
   let freePageURI = browser.runtime.getURL("pages/QRierFreepage.html");
   
-  browser.storage.local.get(['mask','ecc'])
+  browser.storage.local.get('ecc')
   .then((options) => {
-    let mask = options.mask;
     let ecc = [null,"L","M","Q","H"][options.ecc];
     browser.tabs.update({
-      url: `${freePageURI}?data=${fixedEncodeURIComponent(input)}&mask=${mask}&ecc=${ecc}`
+      url: `${freePageURI}?data=${fixedEncodeURIComponent(input)}&mask=9&ecc=${ecc}`
     });
   });
 });
@@ -66,7 +75,6 @@ class Options{
   static fromStorageWithDefaults(){
     return new Promise(res => {
       let settings = browser.storage.local.get({
-        'mask': 9,
         'ecc' : 3,
         'scale': 6,
         'showLink': false,
@@ -99,51 +107,49 @@ async function setDefaultOptions() {
   }
   
   await browser.storage.local.set(options.settings);
-  if(options.settings.showInContent === "popup"){
+  if(!options.settings.inContent){
     browser.action.setPopup({ popup: "../popup/QRier.html" })
   }
   return options
-
 }
 
 
 function setDefaultMenus( options ){
-	
-	if(!browser.menus){
-		return
-	}
+  if(!browser.menus){
+    return
+  }
 
   const settings = options.settings;
   
-	// Create a context menu entry for browserAction to open editor
-	browser.menus.create({
-		id: "openEditor",
-		title: "QRier Editor",
-		contexts: ["action"]
-	});
+  // Create a context menu entry for browserAction to open editor
+  browser.menus.create({
+    id: "openEditor",
+    title: "QRier Editor",
+    contexts: ["action"]
+  });
   // create other menus if needed
   const suffix = "In-" + (settings.inContent ? "content" : "popup");
-	if(settings.showLink){
-		browser.menus.create({
-			id: "openMenuLink"+suffix,
-			title: "QRier link",
-			contexts: ["link"]
-		});
-	}
-	if(settings.showSelection){
-		browser.menus.create({
-			id: "openMenuSelection"+suffix,
-			title: "QRier selection",
-			contexts: ["selection"]
-		});
-	}
-	if(settings.showUrl){
-		browser.menus.create({
-			id: "openMenuUrl"+suffix,
-			title: "QRier url",
-			contexts: ["page"]
-		});
-	}
+  if(settings.showLink){
+    browser.menus.create({
+      id: "openMenuLink"+suffix,
+      title: "QRier link",
+      contexts: ["link"]
+    });
+  }
+  if(settings.showSelection){
+    browser.menus.create({
+      id: "openMenuSelection"+suffix,
+      title: "QRier selection",
+      contexts: ["selection"]
+    });
+  }
+  if(settings.showUrl){
+    browser.menus.create({
+      id: "openMenuUrl"+suffix,
+      title: "QRier url",
+      contexts: ["page"]
+    });
+  }
 }
 
 function setBrowserAction(options){
@@ -154,41 +160,50 @@ function setBrowserAction(options){
   return options
 }
 
-// run once in body
-// bug 1771328
-Options.fromStorageWithDefaults()
-.then(setBrowserAction)
-.then(setDefaultMenus)
 // And also wake up event page once on startup
 browser.runtime.onStartup.addListener(()=>{
   console.log("starting...");
 });  
 
+function injectScripts(id){
+  return browser.scripting.executeScript({
+    files: ["incontent/inContentScript.js"],
+    target: {tabId: id}
+  })
+}
+
+// This seems overly complicated, but we need the panel script to be able to distinguish if it was opened via script or by clicking the panel
 
 function openBrowserActionInPanel(tab){
   browser.action.setPopup({popup:"../popup/QRier.html?"+tab.url});
   return browser.action.openPopup()
 }
 
-function openBrowserActionInContent(tab){
+async function openBrowserActionInContent(tab){
   if(!/^http/.test(tab.url)){
     openBrowserActionInPanel(tab)
     .then(()=>browser.action.setPopup({popup:null}));
     return
   }
-  browser.scripting.executeScript({
-    files: ["inContentScript.js"],
-    target: {tabId: tab.id}
-  })
-  .then((e) => {
-    setTimeout(()=>{
-      browser.tabs.sendMessage(
-        tab.id,
-        { menudata: tab.url }
-      )
-    },60) // time for connection to be made to content script
-  })
+  currentAction.value = tab.url;
+  injectScripts(tab.id)
   .catch(console.error)
+}
+
+async function maybeTrimUrl(action){
+  let opt = await browser.storage.local.get("autoCleanUrls");
+  return opt.autoCleanUrls
+    ? {action: action.value.slice(0,action.value.indexOf("?"))}
+    : {action: action.value}
+}
+
+const currentAction = {
+  value: null,
+  get: () => {
+    return currentAction.value.startsWith("http")
+      ? maybeTrimUrl(currentAction)
+      : Promise.resolve({action:currentAction.value})
+  }
 }
 
 function openMenuActionInPanel(menus){
@@ -203,18 +218,9 @@ function openMenuActionInContent(menus, tab){
     .then(()=>browser.action.setPopup({popup:null}));
     return
   }
-  browser.scripting.executeScript({
-    files: ["inContentScript.js"],
-    target: {tabId: tab.id}
-  })
-  .then((e) => {
-    setTimeout(()=>{
-      browser.tabs.sendMessage(
-        tab.id,
-        { menudata: getStringFromTriggerAction(menus) }
-      )
-    },60) // time for connection to be made to content script
-  })
+  currentAction.value = getStringFromTriggerAction(menus);
+  injectScripts(tab.id)
+
   .catch(console.error);
 }
 
@@ -237,19 +243,13 @@ function handleMessage(request, sender, sendResponse) {
   if(sender.id != browser.runtime.id){
     return Promise.resolve({response: null})
   }
-
-  if(!request.menuChange){
-    return Promise.reject({response: null})
+  if(request.closeFrame){
+    browser.tabs.sendMessage(sender.tab.id,request);
+    return Promise.resolve({response:"success"});
   }
-  const { newMenus, oldMenus } = request.menuChange;
-  if(newMenus.inContent){
-    browser.action.setPopup({popup: null})
-  }else{
-    browser.action.setPopup({ popup: "../popup/QRier.html" })
+  if(request.requestInfo){
+    return currentAction.get()
   }
-  updateMenus(newMenus,oldMenus);
-  return Promise.resolve({response:"success"})
-
 }
 
 // Extends encodeURIComponent() to include !'()*
@@ -257,54 +257,4 @@ function fixedEncodeURIComponent(str) {
   return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
     return '%' + c.charCodeAt(0).toString(16);
   });
-}
-
-function updateMenus(newMenus,oldMenus){
-  const addSuffix = newMenus.inContent ? "In-content" : "In-popup";
-  const removeSuffix = newMenus.inContent ? "In-popup" : "In-content";
-  
-  const inContentStateChanged = newMenus.inContent != oldMenus.inContent;
-  
-  if(inContentStateChanged){
-    browser.menus.remove("openMenuLink"+removeSuffix);
-    browser.menus.remove("openMenuUrl"+removeSuffix);
-    browser.menus.remove("openMenuSelection"+removeSuffix);
-  }
-  
-  if(inContentStateChanged || (oldMenus.onLink != newMenus.onLink)){
-    if(!newMenus.onLink){
-      browser.menus.remove("openMenuLink"+removeSuffix)
-    }else{
-      browser.menus.create({
-        id: "openMenuLink"+addSuffix,
-        title: "QRier link",
-        contexts: ["link"]
-     });
-    }
-  }
-  
-  if(inContentStateChanged || (oldMenus.onUrl != newMenus.onUrl)){
-
-    if(!newMenus.onUrl){
-      browser.menus.remove("openMenuUrl"+removeSuffix)
-    }else{
-      browser.menus.create({
-        id: "openMenuUrl"+addSuffix,
-        title: "QRier url",
-        contexts: ["page"]
-      });
-    }
-  }
-  if(inContentStateChanged || (oldMenus.onSelection != newMenus.onSelection)){
-
-    if(!newMenus.onSelection){
-      browser.menus.remove("openMenuSelection"+removeSuffix)
-    }else{
-      browser.menus.create({
-        id: "openMenuSelection"+addSuffix,
-        title: "QRier selection",
-        contexts: ["selection"]
-      });
-    }
-  }
 }
