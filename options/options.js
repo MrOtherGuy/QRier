@@ -47,7 +47,7 @@ async function saveOptions(e) {
   });
 
   updateMenus(newMenus);
-  updateOutputMode({inContent:newOutput});
+  updateOutputMode({inContent:newOutputInContent});
   feedback(false,"Changes saved");
 }
 
@@ -57,6 +57,22 @@ function updateOutputMode(output){
   }else{
     browser.action.setPopup({ popup: "../popup/QRier.html" });
   }
+}
+
+function onCreated() {
+  if (browser.runtime.lastError) {
+    console.log(`Error: ${browser.runtime.lastError}`);
+  } else {
+    console.log("menuitem created successfully");
+  }
+}
+
+function onRemoved() {
+  console.log("menuitem removed successfully");
+}
+
+function onError() {
+  console.log("error removing item:" + browser.runtime.lastError);
 }
 
 function feedback(err,str){
@@ -70,12 +86,6 @@ function feedback(err,str){
   }
   var fdb = err ? "Error while saving options, see browser console " + str : "OK";
   elem.textContent = fdb;
-  setTimeout(()=>{ elem.textContent = " ";elem.classList.remove("success-status","error-status")},2000)
-  return 0
-}
-
-function restoreOptions() {
-=======
   setTimeout(()=>{ elem.textContent = " ";elem.classList.remove("success-status","error-status")},2000)
   return 0
 }
@@ -100,6 +110,20 @@ function updateMenus(newMenus){
   .then(permissions => {
     hasScripting = permissions
   });
+  
+  if(inContentStateChanged || (menuStates.onLink != newMenus.onLink)){
+    if(!newMenus.onLink){
+      browser.menus.remove("openMenuLink"+removeSuffix)
+      .then(onRemoved,onError);
+    }else{
+      browser.menus.create({
+        id: "openMenuLink"+addSuffix,
+        title: "QRier link",
+        contexts: ["link"]
+        }, onCreated);
+    }
+    menuStates.onLink = newMenus.onLink;
+  }
   
   if(inContentStateChanged || (menuStates.onUrl != newMenus.onUrl)){
 

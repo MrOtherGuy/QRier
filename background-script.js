@@ -1,19 +1,21 @@
 // Install listener
-browser.runtime.onInstalled.addListener(() => {
-  setDefaultOptions()
-  .then(setBrowserAction)
-  .then(setDefaultMenus)
-  .catch(e => { console.error(e) })
+browser.runtime.onInstalled.addListener(async () => {
+  let options = await setDefaultOptions();
+  await setBrowserAction(options);
+  await setDefaultMenus(options);
 });
 
+async function onStartup(){
+  let options = await Options.fromStorageWithDefaults();
+  await setBrowserAction(options);
+  await setDefaultMenus(options);
+}
+
 browser.runtime.onStartup.addListener(() => {
-  Options.fromStorageWithDefaults()
-  .then(setBrowserAction)
-  .then(setDefaultMenus)
-  .catch(e => { console.error(e) })
-})
-
-
+  // Ideally we would run this here, but see bug 1771328
+  // We'll run it at the end of this script body instead
+  // onStartup();
+});
 
 browser.omnibox.onInputEntered.addListener((input) => {
   
@@ -160,11 +162,6 @@ function setBrowserAction(options){
   return options
 }
 
-// And also wake up event page once on startup
-browser.runtime.onStartup.addListener(()=>{
-  console.log("starting...");
-});  
-
 function injectScripts(id){
   return browser.scripting.executeScript({
     files: ["incontent/inContentScript.js"],
@@ -258,3 +255,5 @@ function fixedEncodeURIComponent(str) {
     return '%' + c.charCodeAt(0).toString(16);
   });
 }
+
+onStartup();
