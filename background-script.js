@@ -17,8 +17,7 @@ browser.runtime.onStartup.addListener(() => {
   // onStartup();
 });
 
-browser.omnibox.onInputEntered.addListener((input) => {
-  
+browser.omnibox?.onInputEntered.addListener((input) => {
   // Use tab url when no input
   // ActiveTab permission doesn't work on omnibox trigger currently
   // If no input is given we should default to current url
@@ -35,7 +34,7 @@ browser.omnibox.onInputEntered.addListener((input) => {
 
 browser.runtime.onMessage.addListener(handleMessage);
 
-browser.menus.onClicked.addListener((menus,tab) => {
+browser.menus?.onClicked.addListener((menus,tab) => {
   if(menus.menuItemId === "openEditor"){
     browser.tabs.create({
       "url": browser.runtime.getURL("pages/QRierFreepage.html")
