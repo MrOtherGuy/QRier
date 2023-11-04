@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
     @media (prefers-color-scheme: dark){
       :root{
@@ -28,6 +29,7 @@
       margin-block: 0.4em;
       border-radius: 4px;
     }
+
     #autoCleanUrls-checkbox{
       margin-inline-start: 2em;
     }
@@ -46,6 +48,18 @@
     }
     .success-status{
       background-color: #6396ec;
+    }
+    @media (hover: none){
+      #outputType,
+      #menusForm,
+      #scaleForm{
+        display: none
+      }
+      form{
+        padding-block: 0.6em;
+        font-size: 1.2rem;
+      }
+      button{ font-size: 1.4rem }
     }
     </style>
   <script type="text/javascript" src="options.js"></script>
@@ -86,7 +100,7 @@
         <option value="4">H - 30%</option>
       </select>
     </form>
-    <form>
+    <form id="scaleForm">
       <span>Popup image scale: (No effect on Android)</span>
       <select id="scaleSelect">
         <option value="4">4x4</option>
@@ -96,7 +110,7 @@
         <option value="12">12x12</option>
       </select>
     </form>
-  <form>
+  <form id="menusForm">
     <span>Where context menu is shown:</span>
     <input type="checkbox" id="onUrl"></input>
     <label for="onUrl">Current page</label>
