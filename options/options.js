@@ -98,10 +98,12 @@ function updateMenus(newMenus){
   const inContentStateChanged = newMenus.inContent != menuStates.inContent;
   
   if(inContentStateChanged){
-    browser.menus.remove("openMenuLink"+removeSuffix);
-    browser.menus.remove("openMenuUrl"+removeSuffix);
-    browser.menus.remove("openMenuSelection"+removeSuffix);
-    menuStates.inContent =  !menuStates.inContent;
+    if(browser.menus){
+      browser.menus.remove("openMenuLink"+removeSuffix);
+      browser.menus.remove("openMenuUrl"+removeSuffix);
+      browser.menus.remove("openMenuSelection"+removeSuffix);
+    }
+    menuStates.inContent = !menuStates.inContent;
   }
   
   browser.permissions.contains({
@@ -113,10 +115,10 @@ function updateMenus(newMenus){
   
   if(inContentStateChanged || (menuStates.onLink != newMenus.onLink)){
     if(!newMenus.onLink){
-      browser.menus.remove("openMenuLink"+removeSuffix)
+      browser.menus?.remove("openMenuLink"+removeSuffix)
       .then(onRemoved,onError);
     }else{
-      browser.menus.create({
+      browser.menus?.create({
         id: "openMenuLink"+addSuffix,
         title: "QRier link",
         contexts: ["link"]
@@ -128,10 +130,10 @@ function updateMenus(newMenus){
   if(inContentStateChanged || (menuStates.onUrl != newMenus.onUrl)){
 
     if(!newMenus.onUrl){
-      browser.menus.remove("openMenuUrl"+removeSuffix)
+      browser.menus?.remove("openMenuUrl"+removeSuffix)
       .then(onRemoved,onError);
     }else{
-      browser.menus.create({
+      browser.menus?.create({
         id: "openMenuUrl"+addSuffix,
         title: "QRier url",
         contexts: ["page"]
@@ -142,10 +144,10 @@ function updateMenus(newMenus){
   if(inContentStateChanged || (menuStates.onSelection != newMenus.onSelection)){
 
     if(!newMenus.onSelection){
-      browser.menus.remove("openMenuSelection"+removeSuffix)
+      browser.menus?.remove("openMenuSelection"+removeSuffix)
       .then(onRemoved,onError);
     }else{
-      browser.menus.create({
+      browser.menus?.create({
         id: "openMenuSelection"+addSuffix,
         title: "QRier selection",
         contexts: ["selection"]
