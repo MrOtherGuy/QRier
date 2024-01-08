@@ -2,6 +2,7 @@ body{
 	background-color: rgb(10,20,30);
   padding: 0 4px;
 	overflow: hidden;
+  color: #EEEEEE;
 }
 p,
 #freePageLink{
@@ -33,4 +34,135 @@ p,
   display: flex;
   align-items: center;
   flex-direction: column;
+}
+.optional-container:not([hidden]){
+	margin-block: 0.3em 1em;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.optional-container > details{
+	position: absolute;
+	display: inline-block;
+	margin: 0.1em;
+	outline: 1px solid;
+  border-radius: 8px;
+	cursor: pointer;
+}
+.optional-container > details:hover{
+	background-color: rgba(255,255,255,0.2);
+}
+.optional-container > details[open]{
+	background-color: rgb(50,40,70);
+	z-index: 1;
+	max-width: 50ch;
+}
+.optional-container > details + span{
+	margin-inline-start: 1.2em;
+}
+.optional-container > details > summary{
+	list-style: none;
+	padding-inline: 0.3em;
+}
+
+.toggle-group{
+	flex-direction: row;
+	display: inline-flex;
+	margin-block: 0.2em;
+	margin-inline-start: 0.2em;
+	border: 1px solid;
+  border-radius: 80px;
+	flex-grow: 0;
+}
+.toggle-indicator{
+	display: grid;
+}
+.toggle-indicator > div{
+	pointer-events: none
+}
+.toggle-background,
+.toggle-slider{
+  grid-area: 1/1/2/5;
+}
+
+.toggle-slider{
+	box-sizing: border-box;
+	background-image: radial-gradient(#333 40%,#777 50%,white 60%,transparent 70%);
+	background-size: 1em;
+	background-repeat: no-repeat;
+	width: 100%;
+	background-position-x: 100%;
+	transition: background-position 100ms ease-in-out;
+	filter: drop-shadow(0 0.1em 0.1em black)
+}
+.toggle-group{
+	cursor: pointer;
+}
+.toggle-group > label{
+	cursor: pointer;
+	display: flex;
+	padding-inline: 0.1em;
+	font-size: 0.9em;
+}
+.toggle-indicator > input{
+	appearance: none;
+	box-sizing: border-box;
+	width: 1.4em;
+	margin: 0;
+	cursor: pointer;
+}
+#requestScriptingDeny{
+  grid-area: 1/2/2/3;
+}
+#requestScriptingAllow{
+  grid-area: 1/3/2/4;
+}
+.toggle-group > label:hover{
+	background-color: cornflowerblue;
+	border-radius: 3em;
+}
+#requestScriptingDeny:indeterminate ~ .toggle-slider{
+	background-position-x: center
+}
+#requestScriptingDeny:checked ~ .toggle-slider{
+	background-position-x: 0%
+}
+.toggle-background{
+	outline: 1px solid;
+	background-color: dodgerblue;
+	border-radius: 8em;
+	box-shadow: inset 0 0 2px black;
+}
+#requestScriptingDeny:indeterminate ~ .toggle-background{
+	background-color: grey;
+}
+#requestScriptingDeny:checked ~ .toggle-background{
+	background-color: orangered;
+}
+@media (any-hover: none){
+  body{
+    font-size: 2rem;
+    padding-inline: 1em;
+  }
+  .toggle-group{
+    font-size: 3rem;
+  }
+  .optional-container:not([hidden]){
+    margin-block: 1rem;
+  }
+  .toggle-indicator > input{
+    width: 5rem;
+  }
+  .toggle-group > label{
+    margin-block: 0.2em;
+  }
+  .toggle-slider{
+    background-size: 1.4em;
+  }
+  .optional-container > details > summary{
+    font-size: 4rem;
+  }
+  .optional-container > details + span{
+    margin-inline-start: 3em;
+  }
 }

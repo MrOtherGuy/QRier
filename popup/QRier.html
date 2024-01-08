@@ -11,6 +11,22 @@
 <p id="feedbackFormat"></p>
 <canvas id="qrierCanvas"></canvas>
 </div>
+<div class="optional-container" hidden>
+<details title="Show info"><summary>?</summary><p>Allows QRier to display the generated QR code over the current web site, which might be better experience on Android, but requires scripting access to the active site.</p><p>This setting can later be changed in options.</p></details>
+<span>Allow web-page overlay</span>
+<span class="toggle-group">
+  <label for="requestScriptingDeny">❌</label>
+  <div class="toggle-indicator">
+    <input type="radio" autocomplete="off" name="requestScriptingToggles" id="requestScriptingDeny" value="no">
+    <input type="radio" autocomplete="off" name="requestScriptingToggles" id="requestScriptingAllow" value="yes">
+    <div class="toggle-background"></div>
+    <div class="toggle-slider"></div>
+  </div>
+  <label for="requestScriptingAllow">✔️</label>
+</span>
+</div>
+<p id="successMessage" hidden>Changes apply the next time you run QRier</p>
+<p id="errorMessage" hidden>An error occured while saving your selection :(</p>
 <div id="freePageLink">
 <img src="../icons/button-icon.svg"></img>QRier editor</div>
 </body></html>

@@ -19,7 +19,7 @@ function makeSymbol(query){
   
   var canvas = document.getElementById("qrierCanvas");
   // Page scales to screen width on Android so let's scale the image to that
-  var containerWidth = os === "android" ? Math.min(window.innerHeight, window.innerWidth):null;
+  var containerWidth = os === "android" ? Math.floor(0.6 * Math.min(window.innerHeight, window.innerWidth)):null;
   var requestInfo = {
     "maskNumber":9,
     "eccLevel":eccLevel,
@@ -87,8 +87,65 @@ let options = {
   autoCleanUrls: false
 };
 
+function showSuccess(){
+  document.getElementById("successMessage").hidden = false;
+  document.getElementById("errorMessage").hidden = true;
+}
+
+function showError(){
+  document.getElementById("successMessage").hidden = true;
+  document.getElementById("errorMessage").hidden = false;
+}
+
+function setupOptionalSection(isRevoked,platform){
+  const isUnset = (isRevoked === null || isRevoked === undefined);
+  let container = document.querySelector(".optional-container");
+  let allowButton = document.getElementById("requestScriptingAllow");
+  let denyButton = document.getElementById("requestScriptingDeny");
+  if(!container || !allowButton || !denyButton){ return }
+  
+  if(isRevoked){
+    denyButton.checked = true
+  }else if(isUnset){
+    allowButton.indeterminate = true;
+    denyButton.indeterminate = true;
+  }else{
+    allowButton.checked = true
+  }
+  
+  allowButton.addEventListener("change",(ev) => {
+    if(ev.target.checked){
+      browser.permissions.request({permissions:["scripting"]})
+      .then(gotIt => {
+        if(!gotIt){
+          ev.target.indeterminate = true;
+        }
+      })
+      .then(() => {
+        browser.storage.local.set({
+          scriptingRevoked: false,
+          inContent: true
+        });
+        browser.action.setPopup({popup: null})
+      })
+      .then(showSuccess,showError)
+    }
+  })
+  denyButton.addEventListener("change",(ev) => {
+    if(ev.target.checked){
+      // background-script.js handles this event
+      browser.permissions.remove({permissions:["scripting"]})
+    }
+  })
+  // Don't show the "change-to-incontent" selection except on 
+  // Android because on desktop the panel UI is arguably 
+  // a better experience.
+  // We also don't show it if it has been answered once.
+  container.hidden = !(platform.os === "android" && isUnset)
+}
+
 function setup(){
-  var gettingOptions = browser.storage.local.get(['ecc','scale','autoCleanUrls']);
+  var gettingOptions = browser.storage.local.get(['ecc','scale','autoCleanUrls','scriptingRevoked']);
   var gettingTab = browser.tabs.query({active: true, currentWindow: true});
   var gettingOS = browser.runtime.getPlatformInfo();
 
@@ -102,6 +159,7 @@ Promise.all([gettingOptions,gettingTab,gettingOS]).then(setup =>{
   if(options.autoCleanUrls && currentText.startsWith("http")){
     currentText = currentText.slice(0,currentText.indexOf("?"))
   }
+  setupOptionalSection(setup[0].scriptingRevoked,setup[2]);
   
   makeSymbol(currentText);
   });
