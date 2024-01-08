@@ -50,7 +50,6 @@
       background-color: #6396ec;
     }
     @media (hover: none){
-      #outputType,
       #menusForm,
       #scaleForm{
         display: none
@@ -75,6 +74,10 @@
   </p>
   <h3>Technical details</h3>
   <p>QR codes include some error correction information. The ECC-level is configurable, higher level makes the symbol more resistant to reading errors or symbol destruction. But it makes the symbol bigger for same input (and thus lowers the maximum input length).</p>
+  <h3>New in 2.0.2</h3>
+  <ul>
+  <li>In-content view now works on Android</li>
+  </ul>
   <h3>New in 2.0</h3>
   <ul>
   <li>Use manifest v3 to achieve Android compatibility</li>
@@ -87,7 +90,6 @@
   <li>Context menus don't work on Android.</li>
   <li>Keyword access to editor doesn't work on Android.</li>
   <p>Currently the extension API on Android doesn't support these features</p>
-  <p>You can't have the QR-code over web content on Android. There is a bug in Android Firefox which prevents changing the option.</p>
   </ul>
   </div>
   <h3>Options</h3>
