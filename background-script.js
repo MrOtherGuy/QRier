@@ -56,6 +56,7 @@ browser.menus?.onClicked.addListener((menus,tab) => {
 });
 // Set listener for browserAction button
 browser.action.onClicked.addListener((tab) => {
+  // Note: onClicked is not called if action has an associated popup, thus this can always just call in-content handler
   openBrowserActionInContent(tab)
 });
 
@@ -63,7 +64,10 @@ browser.action.onClicked.addListener((tab) => {
 browser.permissions.onRemoved.addListener(permissions => {
   if(permissions.permissions.includes("scripting")){
     console.log("scripting permission was removed");
-    browser.storage.local.set({ inContent: false });
+    browser.storage.local.set({
+      inContent: false,
+      scriptingRevoked: true
+    });
     browser.action.setPopup({ popup: "../popup/QRier.html" })
   }
 });
@@ -73,24 +77,25 @@ class Options{
     this.settings = settings;
     this.hasScripting = permission;
   }
-  static fromStorageWithDefaults(){
-    return new Promise(res => {
-      let settings = browser.storage.local.get({
+  static async fromStorageWithDefaults(){
+    const [options,hasScripting] = await Promise.all([
+      browser.storage.local.get({
         'ecc' : 3,
         'scale': 6,
         'showLink': false,
         'showUrl': false,
         'showSelection': false,
-        'inContent': false
-      });
-      let permissions = browser.permissions.contains({
+        'inContent': false,
+        'scriptingRevoked': null
+      }),
+      browser.permissions.contains({
         permissions: ["scripting"]
-      });
-      Promise.all([settings,permissions])
-      .then(values => {
-        res(new Options(values[0],values[1]));
-      });
-    });
+      })
+    ]);
+    if(hasScripting){
+      options.scriptingRevoked = false
+    }
+    return new Options(options,hasScripting)
   }
 }
 
@@ -169,13 +174,13 @@ function injectScripts(id){
 }
 
 // This seems overly complicated, but we need the panel script to be able to distinguish if it was opened via script or by clicking the panel
-
+// Note: panel page checks autoCleanUrls setting itself
 function openBrowserActionInPanel(tab){
   browser.action.setPopup({popup:"../popup/QRier.html?"+tab.url});
   return browser.action.openPopup()
 }
 
-async function openBrowserActionInContent(tab){
+function openBrowserActionInContent(tab){
   if(!/^http/.test(tab.url)){
     openBrowserActionInPanel(tab)
     .then(()=>browser.action.setPopup({popup:null}));
@@ -202,6 +207,7 @@ const currentAction = {
   }
 }
 
+// Note: panel page checks autoCleanUrls setting itself
 function openMenuActionInPanel(menus){
   let payloadText = "../popup/QRier.html?"+getStringFromTriggerAction(menus);
   browser.action.setPopup({popup:payloadText});
@@ -216,7 +222,6 @@ function openMenuActionInContent(menus, tab){
   }
   currentAction.value = getStringFromTriggerAction(menus);
   injectScripts(tab.id)
-
   .catch(console.error);
 }
 
