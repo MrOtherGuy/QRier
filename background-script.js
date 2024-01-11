@@ -251,6 +251,10 @@ function handleMessage(request, sender, sendResponse) {
   if(request.requestInfo){
     return currentAction.get()
   }
+  if(request.openTab){
+    browser.tabs.create(request.openTab)
+    return 
+  }
 }
 
 // Extends encodeURIComponent() to include !'()*
