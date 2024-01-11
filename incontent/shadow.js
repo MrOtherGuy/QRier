@@ -1,5 +1,32 @@
 import { QRier_Gen } from "../core/qrGen.js";
 
+// Extends encodeURIComponent() to include !'()*
+function fixedEncodeURIComponent(str) {
+  return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
+    return '%' + c.charCodeAt(0).toString(16);
+  });
+}
+
+function setupPage(payload,result,options){
+  let image = document.getElementById("image");
+  image.src = `data:image/svg+xml;utf-8,${encodeURIComponent(result.result)}`;
+  image.setAttribute("width",result.width * options.scale);
+  let dialog = document.querySelector("dialog");
+  dialog.addEventListener("click",(e)=>{
+    if(e.target === dialog){
+      browser.runtime.sendMessage({ closeFrame: true })
+    }
+  });
+  dialog.addEventListener("close",()=>browser.runtime.sendMessage({ closeFrame: true }));
+  document.getElementById("freePageLink").addEventListener("click",(ev)=>{
+    if(ev.button === 0){
+      browser.runtime.sendMessage({
+        openTab: {url:"../pages/QRierFreepage.html"+"?data="+fixedEncodeURIComponent(payload.action) + "&ecc=" + [null,"L","M","Q","H"][options.ECC]}
+      })
+    }
+  });
+  dialog.showModal();
+}
 (async function(){
   const options = await browser.storage.local.get(['ecc','scale']);
 
@@ -10,26 +37,15 @@ import { QRier_Gen } from "../core/qrGen.js";
     "padding": 3,
     "outputType": QRier_Gen.OUTPUTMODE_SVG
   };
-  let dialog = document.querySelector("dialog");
-  
-  const askToCloseFrame = () => {
-    browser.runtime.sendMessage(
-      { closeFrame: true }
-    )
-  }
-  const getPayload = await browser.runtime.sendMessage({requestInfo: true});
-  
-  let payload = getPayload.action;
-  let result = gen.make(payload,requestInfo);
-  let image = document.createElement("img");
-  image.src = `data:image/svg+xml;utf-8,${encodeURIComponent(result.result)}`;
-  image.setAttribute("width",result.width * options.scale);
-  dialog.appendChild(image);
-  dialog.addEventListener("click",(e)=>{
-    if(e.originalTarget === dialog){
-      askToCloseFrame();
+  const payload = await browser.runtime.sendMessage({requestInfo: true});
+    
+  if(document.readyState === "complete"){
+    setupPage(payload,gen.make(payload.action,requestInfo),options);
+  }else{
+    document.onreadystatechange = () => {
+      if (document.readyState === "complete") {
+        setupPage(payload,gen.make(payload.action,requestInfo),options);
+      }
     }
-  });
-  dialog.addEventListener("close",askToCloseFrame);
-  dialog.showModal();
+  }
 })();

@@ -1,4 +1,4 @@
-img{
+#image{
   pointer-events: auto;
 }
 dialog::backdrop{
@@ -6,12 +6,38 @@ dialog::backdrop{
   background-color: rgba(0,0,0,0.3);
 }
 @media (orientation: portrait){
-  img{
+  #image{
     max-width: 80vw;
   } 
 }
 @media (orientation: landscape){
-  img{
+  #image{
     max-height: 80vh;
   } 
+}
+
+#freePageLink{
+  color: #EEEEEE;
+  width: 100%;
+  line-height: 1;
+  }
+#freePageLink{ 
+  position: relative;
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+  bottom: 0px;
+  left: 0px;
+  background: rgb(46,54,69);
+  height: 2em;
+  padding: 0.5em;
+  text-align: center;
+  cursor: pointer;
+}
+#freePageLink img{
+  margin-right: 0.2em;
+}
+#freePageLink:hover,
+#freePageLink:active{
+  opacity: 0.8;
 }
