@@ -11,6 +11,7 @@ body{
 	color: #ddd;
 	font-size: 1em;
 	padding-top:4px;
+  padding-bottom: 3rem;
 	box-sizing: border-box;
 }
 
@@ -105,7 +106,7 @@ body{
 	align-items: center;
 	justify-content: center;
 	min-width: 60px;
-	max-width: 120px;
+	max-width: 90px;
 	cursor: pointer;
 	border: none;
 	color: #ddd;
@@ -163,7 +164,7 @@ svg{
 svg[viewBox="0 0 0 0"]{ display:none !important }
 
 #outputs{
-	height: calc(100vh - var(--edit-height));
+	height: calc(100vh - var(--edit-height) - 3rem);
 	flex-grow: 1;
 	width: 100%;
 	touch-action: none;
