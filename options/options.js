@@ -157,7 +157,7 @@ function updateMenus(newMenus){
   }
 }
 
-function restoreOptions() {
+function restoreOptions(hasScripting) {
 
   browser.storage.local.get(['ecc','scale','showLink','showUrl','showSelection','inContent','autoCleanUrls'])
   .then((res) => {
@@ -169,7 +169,7 @@ function restoreOptions() {
     menuStates.onUrl = res.showUrl;
     document.querySelector("#onSelect").checked = res.showSelection;
     menuStates.onSelection = res.showSelection;
-    let item = res.inContent ? "content" : "popup";
+    let item = (res.inContent && hasScripting) ? "content" : "popup";
     document.getElementById(item+"-radio").checked = true;
     menuStates.inContent = res.inContent;
     document.getElementById("autoCleanUrls-checkbox").checked = res.autoCleanUrls;
@@ -178,7 +178,8 @@ function restoreOptions() {
 }
 
 function init(){
-  restoreOptions();
+  browser.permissions.contains({permissions:["scripting"]})
+  .then(restoreOptions);
   document.getElementById("saveButton").addEventListener("click", saveOptions);
 }
 
